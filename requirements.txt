@@ -1,0 +1,20 @@
+# NOTA: en octubre de 2025 el ecosistema LangChain salto de la serie 0.3.x
+# a una nueva serie estable 1.x. Estas son las versiones actuales y
+# compatibles entre si (verificado en PyPI). 
+
+langchain-core>=1.2.0,<2.0.0
+langchain-community>=0.4.0,<0.5.0
+
+# NOTA 2:MultiQueryRetriever (y otras utilidades "legacy") viven ahora en este
+# paquete aparte desde LangChain 1.x, ya no en "langchain" directamente.
+langchain-classic>=1.0.0,<2.0.0
+
+langchain-google-genai>=4.2.0,<5.0.0
+langchain-ollama>=0.3.0,<1.0.0
+langchain-text-splitters>=1.1.0,<2.0.0
+langgraph>=1.2.0,<2.0.0
+
+faiss-cpu>=1.11.0
+pymupdf>=1.26.0
+pydantic>=2.11.0
+python-dotenv>=1.1.0
