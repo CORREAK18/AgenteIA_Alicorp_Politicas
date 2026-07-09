@@ -1,0 +1,28 @@
+# Archivos y carpetas que no se deben subir
+
+# Entorno virtual local
+.venv/
+venv/
+env/
+
+# Variables sensibles
+.env
+.env.*
+!.env.example
+
+# Cachés y archivos compilados
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Índices y artefactos generados por el RAG
+faiss_index/
+grafo_agente.png
+
+# Resultados temporales de ejecución
+.ipynb_checkpoints/
+*.log
+
+# Dependencias instaladas localmente por error
+node_modules/
