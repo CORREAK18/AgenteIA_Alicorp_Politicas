@@ -1,67 +1,268 @@
-"""
-main.py
-=======
-Punto de entrada del proyecto:
+# Punto de entrada del proyecto. Levanta un servidor FastAPI en el puerto 8000
+# expone endpoints para consultar al agente e interactuar con el frontend.
+# Ejecutar con: python Main.py
 
-    python main.py
+from contextlib import asynccontextmanager
+import os
+from pathlib import Path
+from typing import List
 
-todas las piezas de los demás módulos:
-  1. config       -> variables de entorno
-  2. providers    -> LLM y modelo de embeddings
-  3. documentos   -> carga y trocea los PDFs, arma la lista de políticas
-  4. triaje       -> prompt de triaje + cadena de clasificación
-  5. vectorstore  -> índice FAISS (nuevo o cacheado) + retriever multipregunta
-  6. busqueda_rag -> cadena de generación de respuesta
-  7. grafo        -> arma y compila el grafo de LangGraph
-"""
-
-import logging
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
+import uvicorn
 
 import config
-from busqueda_rag import construir_document_chain
+from busqueda_rag import construir_cadena_rag, construir_cadena_verificacion
 from documentos import cargar_documentos, generar_lista_politicas, trocear_documentos
 from grafo import construir_grafo, guardar_diagrama_grafo
+from memoria import (
+    borrar_historial,
+    condensar_pregunta,
+    guardar_turno,
+    obtener_historial,
+    obtener_lock,
+)
 from providers import construir_embeddings, construir_llm
-from triaje import construir_cadena_triaje, construir_prompt_triaje
+from triaje import (
+    construir_cadena_triaje,
+    construir_prompt_triaje,
+    ejecutar_triaje,
+)
 from vectorstore import construir_o_cargar_vectorstore, construir_retriever
 
 
-def main() -> None:
-    if config.MOSTRAR_MULTIQUERIES:
-        logging.basicConfig()
-        logging.getLogger("langchain.retrievers.multi_query").setLevel(logging.INFO)
+# Estado global en memoria para guardar el grafo compilado y componentes cargados
+state = {}
 
-    # Primero levantamos el modelo principal y el de embeddings.
-    llm = construir_llm()
-    modelo_embeddings = construir_embeddings()
 
-    # Después cargamos los PDFs y armamos los fragmentos de texto.
-    docs = cargar_documentos()
-    lista_politicas = generar_lista_politicas(docs)
-    chunks = trocear_documentos(docs)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Carga e inicializa todos los componentes del agente al arrancar el servidor."""
+    print("Iniciando componentes del agente de IA y RAG de Alicorp...")
+    try:
+        llm = construir_llm()
+        modelo_embeddings = construir_embeddings()
 
-    # Con esto construimos el prompt y la cadena de triaje.
-    prompt_triaje = construir_prompt_triaje(lista_politicas)
-    cadena_triaje = construir_cadena_triaje(llm)
+        docs = cargar_documentos()
+        lista_politicas = generar_lista_politicas(docs)
+        chunks = trocear_documentos(docs)
 
-    # Luego generamos o cargamos el índice FAISS y el retriever.
-    vectorstore = construir_o_cargar_vectorstore(chunks, modelo_embeddings)
-    retriever = construir_retriever(vectorstore, llm)
+        prompt_triaje = construir_prompt_triaje(lista_politicas)
+        cadena_triaje = construir_cadena_triaje(llm)
 
-    # Con el retriever listo, armamos la cadena de respuesta RAG.
-    document_chain = construir_document_chain(llm)
+        vectorstore = construir_o_cargar_vectorstore(chunks, modelo_embeddings)
+        retriever = construir_retriever(vectorstore)
 
-    # Finalmente ensamblamos el grafo y generamos su diagrama.
-    grafo = construir_grafo(cadena_triaje, prompt_triaje, retriever, document_chain)
-    guardar_diagrama_grafo(grafo)
+        cadena_rag = construir_cadena_rag(llm)
+        cadena_verificacion = construir_cadena_verificacion(llm)
 
-    # Ejemplo local de ejecución completa.
-    pregunta = "Cuales son las politicas de sanciones economicas?"
-    respuesta = grafo.invoke({"pregunta": pregunta})
+        grafo = construir_grafo(
+            cadena_triaje,
+            prompt_triaje,
+            retriever,
+            cadena_rag,
+            cadena_verificacion,
+        )
 
-    print(f"Pregunta: {pregunta}")
-    print(f"Respuesta: {respuesta['respuesta']}")
+        guardar_diagrama_grafo(grafo)
+
+        state["grafo"] = grafo
+        state["llm"] = llm
+        state["cadena_triaje"] = cadena_triaje
+        state["prompt_triaje"] = prompt_triaje
+
+        nombres_politicas = sorted(
+            {Path(d.metadata.get("source", "")).stem for d in docs if d.metadata.get("source")}
+        )
+        state["politicas"] = list(nombres_politicas)
+
+        print("¡El agente de IA se ha inicializado y compilado correctamente!")
+    except Exception as e:
+        print(f"Error crítico durante la inicialización del agente: {e}")
+        raise e
+    yield
+    state.clear()
+
+
+app = FastAPI(
+    title="Alicorp RAG Agent API",
+    description="API REST para interactuar con el Agente de Políticas Corporativas de Alicorp.",
+    version="2.0.0",
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+class ChatRequest(BaseModel):
+    pregunta: str = Field(..., description="La pregunta o consulta del colaborador.")
+    thread_id: str = Field(default="default", description="Identificador único de la sesión.")
+
+
+class Citation(BaseModel):
+    texto: str = Field(..., description="Fragmento de texto citado.")
+    fuente: str = Field(..., description="Nombre del archivo PDF origen de la cita.")
+    pagina: int = Field(..., description="Número de página en el PDF.")
+
+
+class TriageInfo(BaseModel):
+    decision: str = Field(..., description="Decisión tomada en el triaje.")
+    urgencia: str = Field(..., description="Nivel de urgencia detectado.")
+    campos_faltantes: List[str] = Field(default_factory=list, description="Lista de datos faltantes.")
+
+
+class ChatResponse(BaseModel):
+    pregunta: str
+    respuesta: str
+    accion_final: str
+    triaje: TriageInfo
+    citaciones: List[Citation] = Field(default_factory=list)
+
+
+class TriageOnlyResponse(BaseModel):
+    pregunta: str
+    respuesta: str
+    accion_final: str
+    triaje: TriageInfo
+    citaciones: List[Citation] = Field(default_factory=list)
+
+
+@app.get("/health", summary="Diagnóstico de la API")
+def health_check():
+    """Retorna el estado de la API para confirmar que está activa."""
+    if "grafo" not in state:
+        return {"status": "starting or error"}
+    return {"status": "ok"}
+
+
+@app.get("/api/politicas", summary="Listar políticas cubiertas")
+def get_politicas():
+    """Retorna la lista de nombres de políticas que el agente tiene indexadas."""
+    if "politicas" not in state:
+        raise HTTPException(status_code=503, detail="La API no está completamente cargada aún.")
+    return {"politicas": state["politicas"]}
+
+
+@app.delete("/api/chat/historial/{thread_id}", summary="Borrar historial de una conversación")
+def delete_historial(thread_id: str):
+    """Borra el historial de conversación de un hilo específico."""
+    borrar_historial(thread_id)
+    return {"mensaje": f"Historial de la sesión '{thread_id}' eliminado correctamente."}
+
+
+@app.post("/api/triaje", response_model=TriageOnlyResponse, summary="Clasificar una consulta sin ejecutar el RAG")
+def classify_question(req: ChatRequest):
+    """Ejecuta únicamente el triaje para clasificar la consulta."""
+    if "cadena_triaje" not in state:
+        raise HTTPException(status_code=503, detail="El triaje aún no está listo.")
+
+    pregunta = req.pregunta.strip()
+    if not pregunta:
+        raise HTTPException(status_code=400, detail="La pregunta no puede estar vacía.")
+
+    thread_id = req.thread_id.strip() or "default"
+
+    try:
+        with obtener_lock(thread_id):
+            resultado = ejecutar_triaje(
+                pregunta,
+                state["cadena_triaje"],
+                state["prompt_triaje"],
+            )
+    except Exception as error:
+        print(f"Error clasificando la consulta '{pregunta}': {error}")
+        raise HTTPException(status_code=500, detail=f"Error interno en el triaje: {error}")
+
+    acciones = {
+        "SALUDO": "SALUDO",
+        "FUERA_DE_AMBITO": "FUERA_DE_AMBITO",
+        "PEDIR_MAS_INFORMACION": "PEDIR_INFO",
+        "ABRIR_TICKET": "ABRIR_TICKET",
+        "CONSULTAR_RAG": "CONSULTAR_RAG",
+    }
+    decision = resultado["decision"]
+
+    return TriageOnlyResponse(
+        pregunta=pregunta,
+        respuesta=f"Clasificación de triaje: {decision}",
+        accion_final=acciones.get(decision, "ERROR_TRIAJE"),
+        triaje=TriageInfo(**resultado),
+        citaciones=[],
+    )
+
+
+@app.post("/api/chat", response_model=ChatResponse, summary="Enviar una consulta al agente")
+def ask_question(req: ChatRequest):
+    """Procesa una consulta usando memoria, triaje, RAG y verificación."""
+    if "grafo" not in state:
+        raise HTTPException(status_code=503, detail="El agente no está listo.")
+
+    pregunta_original = req.pregunta.strip()
+    thread_id = req.thread_id.strip() or "default"
+
+    if not pregunta_original:
+        raise HTTPException(status_code=400, detail="La pregunta no puede estar vacía.")
+
+    try:
+        with obtener_lock(thread_id):
+            historial = obtener_historial(thread_id)
+            pregunta = condensar_pregunta(
+                pregunta_original,
+                historial,
+                state["llm"],
+            )
+            resultado = state["grafo"].invoke({"pregunta": pregunta})
+
+            citaciones_originales = resultado.get("citaciones") or []
+            citaciones_formateadas = []
+            for doc in citaciones_originales:
+                source = doc.metadata.get("source", "Desconocido")
+                filename = Path(source).name
+                try:
+                    page = int(doc.metadata.get("page", 0)) + 1
+                except (TypeError, ValueError):
+                    page = 1
+
+                citaciones_formateadas.append(
+                    Citation(
+                        texto=doc.page_content,
+                        fuente=filename,
+                        pagina=page
+                    )
+                )
+
+            triaje_datos = resultado.get("triaje") or {}
+            triage_info = TriageInfo(
+                decision=triaje_datos.get("decision", "CONSULTAR_RAG"),
+                urgencia=triaje_datos.get("urgencia", "BAJA"),
+                campos_faltantes=triaje_datos.get("campos_faltantes") or []
+            )
+
+            respuesta_final = resultado.get("respuesta") or "No se pudo generar una respuesta a tu consulta."
+            guardar_turno(thread_id, pregunta_original, respuesta_final)
+
+        return ChatResponse(
+            pregunta=pregunta_original,
+            respuesta=respuesta_final,
+            accion_final=resultado.get("accion_final") or "PEDIR_INFO",
+            triaje=triage_info,
+            citaciones=citaciones_formateadas
+        )
+
+    except Exception as e:
+        print(f"Error procesando la consulta '{pregunta_original}': {e}")
+        raise HTTPException(status_code=500, detail=f"Error interno al procesar la consulta: {str(e)}")
 
 
 if __name__ == "__main__":
-    main()
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "8000"))
+    print(f"Iniciando el servidor API en http://{host}:{port}...")
+    uvicorn.run(app, host=host, port=port, reload=False, workers=1)

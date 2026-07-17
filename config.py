@@ -1,42 +1,81 @@
-"""
-config.py
-=========
-Carga el archivo .env y expone toda la configuración del proyecto como
-variables de módulo. Todos los demás archivos importan de aquí en vez de
-leer variables de entorno por su cuenta, para tener un solo lugar donde
-se define la configuración.
-"""
+# Lee las variables del .env y las expone como constantes para todo el proyecto.
+# Aquí se elige qué proveedor de LLM y de embeddings se va a usar.
 
 import os
 from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()  # lee el archivo .env en el directorio del proyecto
+load_dotenv()
 
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini").lower()
-EMBEDDINGS_PROVIDER = os.getenv("EMBEDDINGS_PROVIDER", "gemini").lower()
 
-GEMINI_CLAVE = os.getenv("GEMINI_API_KEY")
-if "gemini" in (LLM_PROVIDER, EMBEDDINGS_PROVIDER) and not GEMINI_CLAVE:
+# Proveedor del LLM: quién responde preguntas y clasifica mensajes
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "cohere").strip().lower()
+
+COHERE_API_KEY         = os.getenv("COHERE_API_KEY", "").strip()
+COHERE_CHAT_MODEL      = os.getenv("COHERE_CHAT_MODEL", "command-a-03-2025").strip()
+COHERE_TIMEOUT_SECONDS = float(os.getenv("COHERE_TIMEOUT_SECONDS", "120"))
+
+GEMINI_API_KEY    = os.getenv("GEMINI_API_KEY", "").strip()
+GEMINI_CHAT_MODEL = os.getenv("GEMINI_CHAT_MODEL", "gemini-2.0-flash").strip()
+
+if LLM_PROVIDER == "cohere" and not COHERE_API_KEY:
     raise RuntimeError(
-        "No se encontró GEMINI_API_KEY, pero LLM_PROVIDER o EMBEDDINGS_PROVIDER "
-        "están configurados como 'gemini'. Crea un archivo .env (puedes copiar "
-        ".env.example) con tu clave de Gemini, o cambia esas variables a 'ollama'."
+        "Falta COHERE_API_KEY en el archivo .env. "
+        "Agrégala allí; nunca la escribas directamente en el código."
     )
 
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL")
-OLLAMA_LLM_MODEL = os.getenv("OLLAMA_LLM_MODEL")
-OLLAMA_EMBEDDING_MODEL = os.getenv("OLLAMA_EMBEDDING_MODEL")
+if LLM_PROVIDER == "gemini" and not GEMINI_API_KEY:
+    raise RuntimeError(
+        "Falta GEMINI_API_KEY en el archivo .env para usar LLM_PROVIDER=gemini."
+    )
+
+if LLM_PROVIDER not in {"cohere", "gemini"}:
+    raise RuntimeError(
+        f"LLM_PROVIDER='{LLM_PROVIDER}' no es válido. "
+        "Escribe 'cohere' o 'gemini' en el .env."
+    )
 
 
-PDF_DIR = Path(os.getenv("PDF_DIR", "./Documentos"))
+# Proveedor de embeddings: quién convierte texto en vectores para FAISS
+EMBEDDINGS_PROVIDER = os.getenv("EMBEDDINGS_PROVIDER", "cohere").strip().lower()
 
-FAISS_INDEX_DIR = os.getenv("FAISS_INDEX_DIR", "./faiss_index")
+COHERE_EMBEDDING_MODEL = os.getenv("COHERE_EMBEDDING_MODEL", "embed-v4.0").strip()
+
+GEMINI_EMBEDDING_MODEL = os.getenv(
+    "GEMINI_EMBEDDING_MODEL",
+    "models/gemini-embedding-exp-03-07",
+).strip()
+
+if EMBEDDINGS_PROVIDER == "cohere" and not COHERE_API_KEY:
+    raise RuntimeError(
+        "Falta COHERE_API_KEY en el .env. "
+        "Es necesaria también para los embeddings de Cohere."
+    )
+
+if EMBEDDINGS_PROVIDER == "gemini" and not GEMINI_API_KEY:
+    raise RuntimeError(
+        "Falta GEMINI_API_KEY en el .env. "
+        "Es necesaria también para los embeddings de Gemini."
+    )
+
+if EMBEDDINGS_PROVIDER not in {"cohere", "gemini"}:
+    raise RuntimeError(
+        f"EMBEDDINGS_PROVIDER='{EMBEDDINGS_PROVIDER}' no es válido. "
+        "Escribe 'cohere' o 'gemini' en el .env."
+    )
 
 
-TAMANO_LOTE_EMBEDDINGS = int(os.getenv("TAMANO_LOTE_EMBEDDINGS", "20"))
+# Rutas y configuración de procesamiento de documentos
+PDF_DIR         = Path(os.getenv("PDF_DIR", "./Documentos"))
+FAISS_INDEX_DIR = os.getenv("FAISS_INDEX_DIR", "./faiss_indexv2")
+
+# Tokenizador local solo para medir el tamaño de los fragmentos al trocear PDFs
+HF_TOKENIZER_MODEL = os.getenv("HF_TOKENIZER_MODEL", "BAAI/bge-m3")
+
+TAMANO_LOTE_EMBEDDINGS    = int(os.getenv("TAMANO_LOTE_EMBEDDINGS", "20"))
 PAUSA_SEGUNDOS_EMBEDDINGS = int(os.getenv("PAUSA_SEGUNDOS_EMBEDDINGS", "15"))
+CHUNK_SIZE_TOKENS         = int(os.getenv("CHUNK_SIZE_TOKENS", "800"))
+CHUNK_OVERLAP_TOKENS      = int(os.getenv("CHUNK_OVERLAP_TOKENS", "120"))
 
-
-MOSTRAR_MULTIQUERIES = os.getenv("MOSTRAR_MULTIQUERIES", "true").lower() == "true"
+MOSTRAR_MULTIQUERIES = os.getenv("MOSTRAR_MULTIQUERIES", "false").strip().lower() == "true"
