@@ -24,6 +24,7 @@ class AgentState(TypedDict, total=False):
 def construir_grafo(
     cadena_triaje,
     prompt_triaje: str,
+    nombres_politicas: list,
     retriever,
     cadena_rag,
     cadena_verificacion,
@@ -150,11 +151,28 @@ def construir_grafo(
             "accion_final": "SALUDO",
         }
 
+    def nodo_listar_politicas(_state: AgentState) -> AgentState:
+        """Devuelve el catálogo completo de políticas sin consultar FAISS."""
+        print("[GRAFO] Nodo: listar_politicas")
+        total   = len(nombres_politicas)
+        listado = "\n".join(
+            f"{numero}. {nombre}"
+            for numero, nombre in enumerate(nombres_politicas, start=1)
+        )
+        return {
+            "respuesta": (
+                f"Tengo información sobre {total} políticas de Alicorp:\n\n{listado}"
+            ),
+            "citaciones":   [],
+            "accion_final": "LISTAR_POLITICAS",
+        }
+
     def decidir_ruta_triaje(state: AgentState) -> str:
         """Lee la decisión del triaje y devuelve el nombre de la ruta."""
         decision = (state.get("triaje") or {}).get("decision", "PEDIR_MAS_INFORMACION")
         rutas = {
             "CONSULTAR_RAG":         "rag",
+            "LISTAR_POLITICAS":      "listar",
             "PEDIR_MAS_INFORMACION": "info",
             "ABRIR_TICKET":          "ticket",
             "FUERA_DE_AMBITO":       "fuera",
@@ -179,15 +197,16 @@ def construir_grafo(
 
     workflow = StateGraph(AgentState)
 
-    workflow.add_node("triaje",          nodo_triaje)
-    workflow.add_node("consultar_rag",   nodo_consultar_rag)
-    workflow.add_node("verificar_rag",   nodo_verificar_rag)
-    workflow.add_node("respuesta_ok",    nodo_respuesta_ok)
-    workflow.add_node("no_se",           nodo_no_se)
-    workflow.add_node("pedir_info",      nodo_pedir_info)
-    workflow.add_node("abrir_ticket",    nodo_abrir_ticket)
-    workflow.add_node("fuera_de_ambito", nodo_fuera_de_ambito)
-    workflow.add_node("saludo",          nodo_saludo)
+    workflow.add_node("triaje",           nodo_triaje)
+    workflow.add_node("consultar_rag",    nodo_consultar_rag)
+    workflow.add_node("verificar_rag",    nodo_verificar_rag)
+    workflow.add_node("respuesta_ok",     nodo_respuesta_ok)
+    workflow.add_node("no_se",            nodo_no_se)
+    workflow.add_node("listar_politicas", nodo_listar_politicas)
+    workflow.add_node("pedir_info",       nodo_pedir_info)
+    workflow.add_node("abrir_ticket",     nodo_abrir_ticket)
+    workflow.add_node("fuera_de_ambito",  nodo_fuera_de_ambito)
+    workflow.add_node("saludo",           nodo_saludo)
 
     workflow.add_edge(START, "triaje")
 
@@ -196,6 +215,7 @@ def construir_grafo(
         decidir_ruta_triaje,
         {
             "rag":    "consultar_rag",
+            "listar": "listar_politicas",
             "info":   "pedir_info",
             "ticket": "abrir_ticket",
             "fuera":  "fuera_de_ambito",
@@ -216,7 +236,7 @@ def construir_grafo(
     )
 
     for nodo_final in (
-        "respuesta_ok", "no_se", "pedir_info",
+        "respuesta_ok", "no_se", "listar_politicas", "pedir_info",
         "abrir_ticket", "fuera_de_ambito", "saludo",
     ):
         workflow.add_edge(nodo_final, END)

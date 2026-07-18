@@ -36,7 +36,6 @@ from triaje import (
     ejecutar_triaje,
 )
 from vectorstore import (
-    cargar_vectorstore_si_existe,
     construir_o_cargar_vectorstore,
     construir_retriever,
 )
@@ -60,14 +59,22 @@ async def lifespan(app: FastAPI):
         prompt_triaje = construir_prompt_triaje(lista_politicas)
         cadena_triaje = construir_cadena_triaje(llm)
 
-        vectorstore = cargar_vectorstore_si_existe(modelo_embeddings)
+        nombres_politicas = sorted(
+            {
+                Path(str(d.metadata.get("source", "")).replace("\\", "/")).stem
+                for d in docs
+                if d.metadata.get("source")
+            }
+        )
 
-        if vectorstore is None:
-            chunks = trocear_documentos(docs)
-            vectorstore = construir_o_cargar_vectorstore(
-                chunks,
-                modelo_embeddings,
-            )
+        # Siempre se calcula la huella actual para detectar si los PDFs cambiaron.
+        # construir_o_cargar_vectorstore reutiliza el índice si ya está vigente,
+        # o lo reconstruye automáticamente si se agregaron/quitaron documentos.
+        chunks = trocear_documentos(docs)
+        vectorstore = construir_o_cargar_vectorstore(
+            chunks,
+            modelo_embeddings,
+        )
         retriever = construir_retriever(vectorstore)
         cadena_rag = construir_cadena_rag(llm)
         cadena_verificacion = construir_cadena_verificacion(llm)
@@ -75,6 +82,7 @@ async def lifespan(app: FastAPI):
         grafo = construir_grafo(
             cadena_triaje,
             prompt_triaje,
+            nombres_politicas,
             retriever,
             cadena_rag,
             cadena_verificacion,
@@ -82,15 +90,11 @@ async def lifespan(app: FastAPI):
 
         guardar_diagrama_grafo(grafo)
 
-        state["grafo"] = grafo
-        state["llm"] = llm
-        state["cadena_triaje"] = cadena_triaje
-        state["prompt_triaje"] = prompt_triaje
-
-        nombres_politicas = sorted(
-            {Path(d.metadata.get("source", "")).stem for d in docs if d.metadata.get("source")}
-        )
-        state["politicas"] = list(nombres_politicas)
+        state["grafo"]   = grafo
+        state["llm"]     = llm
+        state["cadena_triaje"]  = cadena_triaje
+        state["prompt_triaje"]  = prompt_triaje
+        state["politicas"]      = nombres_politicas
 
         print("¡El agente de IA se ha inicializado y compilado correctamente!")
     except Exception as e:
@@ -209,6 +213,7 @@ def classify_question(req: ChatRequest):
         "PEDIR_MAS_INFORMACION": "PEDIR_INFO",
         "ABRIR_TICKET": "ABRIR_TICKET",
         "CONSULTAR_RAG": "CONSULTAR_RAG",
+        "LISTAR_POLITICAS": "LISTAR_POLITICAS",
     }
     decision = resultado["decision"]
 

@@ -37,6 +37,17 @@ Decisiones y reglas:
 - ABRIR_TICKET: pide ejecutar una gestión real, registrar una denuncia o
   incidente, obtener una excepción, autorización, acceso o desbloqueo.
   IMPORTANTE: Las consultas donde el usuario pide u orienta a solicitar/obtener una excepción, permiso o autorización especial para saltarse, evadir, omitir o infringir una regla de alguna política (como ciberseguridad, ética o regalos), o pregunta ante quién o dónde realizar dicho pedido de bypass, deben clasificarse obligatoriamente como ABRIR_TICKET.
+- LISTAR_POLITICAS: el usuario solicita conocer el catálogo completo, la
+  cantidad total, el universo de información, los documentos disponibles o
+  todas las políticas sobre las que el asistente puede responder.
+  Clasifica por la intención semántica, no por coincidencias exactas de palabras.
+  Incluye variantes ortográficas y expresiones equivalentes.
+  NO uses LISTAR_POLITICAS cuando el usuario pregunte por el contenido de una
+  política específica; en ese caso usa CONSULTAR_RAG.
+  Ejemplos: "¿Cuántas políticas conoces?" → LISTAR_POLITICAS;
+  "¿Sobre qué documentos puedes responder?" → LISTAR_POLITICAS;
+  "¿Cuál es todo tu universo de información?" → LISTAR_POLITICAS;
+  "¿Qué dice la política de regalos?" → CONSULTAR_RAG.
 - CONSULTAR_RAG: pregunta informativa concreta sobre Alicorp, sus políticas,
   reglas, beneficios, compromisos, prohibiciones, requisitos o procedimientos.
 
@@ -133,7 +144,7 @@ Los ejemplos representan intenciones comunicativas; no deben tratarse como
 comparaciones literales de texto.
 Genera exclusivamente un objeto JSON con esta estructura:
 {{
-  "decision": "CONSULTAR_RAG | PEDIR_MAS_INFORMACION | ABRIR_TICKET | FUERA_DE_AMBITO | SALUDO",
+  "decision": "CONSULTAR_RAG | LISTAR_POLITICAS | PEDIR_MAS_INFORMACION | ABRIR_TICKET | FUERA_DE_AMBITO | SALUDO",
   "urgencia": "BAJA | MEDIA | ALTA",
   "campos_faltantes": [],
   "usa_historial": false
@@ -146,6 +157,7 @@ class TriajeOut(BaseModel):
 
     decision: Literal[
         "CONSULTAR_RAG",
+        "LISTAR_POLITICAS",
         "PEDIR_MAS_INFORMACION",
         "ABRIR_TICKET",
         "FUERA_DE_AMBITO",
@@ -238,8 +250,8 @@ def ejecutar_triaje(mensaje: str, cadena_triaje, prompt_triaje: str) -> Dict:
     if resultado["decision"] != "PEDIR_MAS_INFORMACION":
         resultado["campos_faltantes"] = []
     
-    # Una interacción social nunca necesita recuperar el tema anterior
-    if resultado["decision"] == "SALUDO":
+    # Las interacciones sociales y listados nunca necesitan recuperar el tema anterior
+    if resultado["decision"] in {"SALUDO", "LISTAR_POLITICAS"}:
         resultado["usa_historial"] = False
 
     print(

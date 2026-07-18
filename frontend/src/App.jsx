@@ -63,12 +63,13 @@ const SUGGESTIONS = [
 ];
 
 const ACTION_LABELS = {
-  AUTO_RESOLVER: { label: "Respuesta verificada", tone: "success" },
-  PEDIR_INFO: { label: "Requiere precisión", tone: "warning" },
-  ABRIR_TICKET: { label: "Requiere gestión", tone: "danger" },
-  SALUDO: { label: "Conversación", tone: "neutral" },
-  FUERA_DE_AMBITO: { label: "Fuera de ámbito", tone: "neutral" },
-  SIN_INFORMACION: { label: "Sin información", tone: "neutral" },
+  AUTO_RESOLVER:    { label: "Respuesta verificada",    tone: "success" },
+  LISTAR_POLITICAS: { label: "Catálogo de políticas",   tone: "success" },
+  PEDIR_INFO:       { label: "Requiere precisión",      tone: "warning" },
+  ABRIR_TICKET:     { label: "Requiere gestión",        tone: "danger"  },
+  SALUDO:           { label: "Conversación",            tone: "neutral" },
+  FUERA_DE_AMBITO:  { label: "Fuera de ámbito",         tone: "neutral" },
+  SIN_INFORMACION:  { label: "Sin información",         tone: "neutral" },
 };
 
 function makeId(prefix = "id") {
