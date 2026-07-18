@@ -147,7 +147,11 @@ def sub_vectorstore_construir_en_lotes(
 
 
 def sub_vectorstore_huella_archivos(pdf_dir: Path) -> str:
-    """Calcula un hash SHA-256 basado en los archivos PDF de la carpeta y los embeddings activos."""
+    """
+    Calcula un hash SHA-256 basado en los archivos PDF de la carpeta y los embeddings activos.
+    Se excluye la fecha de modificación (mtime) porque Git no la preserva al clonar en la nube (Render).
+    Solo usamos el nombre del archivo y su tamaño en bytes.
+    """
     hasher = hashlib.sha256()
     hasher.update(sub_vectorstore_identidad_embeddings().encode("utf-8"))
 
@@ -159,10 +163,7 @@ def sub_vectorstore_huella_archivos(pdf_dir: Path) -> str:
                 hasher.update(b"\0")
                 hasher.update(str(stat.st_size).encode("utf-8"))
                 hasher.update(b"\0")
-                hasher.update(str(stat.st_mtime).encode("utf-8"))
-                hasher.update(b"\0")
             except OSError:
-                # Si falla al leer atributos de algún archivo, ignorar su mtime
                 hasher.update(archivo.name.encode("utf-8", errors="ignore"))
 
     return hasher.hexdigest()
