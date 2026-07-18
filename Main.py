@@ -16,11 +16,7 @@ import uvicorn
 
 import config
 from busqueda_rag import construir_cadena_rag, construir_cadena_verificacion
-from documentos import (
-    cargar_documentos,
-    generar_lista_politicas,
-    trocear_documentos,
-)
+from documentos import obtener_nombres_politicas
 from grafo import construir_grafo, guardar_diagrama_grafo
 from memoria import (
     borrar_historial,
@@ -52,27 +48,16 @@ async def lifespan(app: FastAPI):
         llm = construir_llm()
         modelo_embeddings = construir_embeddings()
 
-        docs = cargar_documentos()
-        lista_politicas = generar_lista_politicas(docs)
-        
+        # Obtiene nombres de políticas sin cargar PDFs en memoria
+        nombres_politicas = obtener_nombres_politicas()
+        lista_politicas = "\n".join(f"- {nombre}." for nombre in nombres_politicas)
 
         prompt_triaje = construir_prompt_triaje(lista_politicas)
         cadena_triaje = construir_cadena_triaje(llm)
 
-        nombres_politicas = sorted(
-            {
-                Path(str(d.metadata.get("source", "")).replace("\\", "/")).stem
-                for d in docs
-                if d.metadata.get("source")
-            }
-        )
-
-        # Siempre se calcula la huella actual para detectar si los PDFs cambiaron.
-        # construir_o_cargar_vectorstore reutiliza el índice si ya está vigente,
-        # o lo reconstruye automáticamente si se agregaron/quitaron documentos.
-        chunks = trocear_documentos(docs)
+        # Carga el índice existente. Reconstruye internamente cargando PDFs/chunks
+        # solo si la huella del directorio de documentos cambió.
         vectorstore = construir_o_cargar_vectorstore(
-            chunks,
             modelo_embeddings,
         )
         retriever = construir_retriever(vectorstore)

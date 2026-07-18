@@ -11,6 +11,17 @@ from langchain_core.documents import Document
 import config
 
 
+def obtener_nombres_politicas(pdf_dir: Optional[Path] = None) -> List[str]:
+    """
+    Obtiene los nombres únicos de las políticas directamente de los archivos
+    disponibles en la carpeta PDF sin cargarlos en memoria.
+    """
+    pdf_dir = pdf_dir or config.PDF_DIR
+    if not pdf_dir.exists():
+        return []
+    return sorted([archivo.stem for archivo in pdf_dir.glob("*.pdf")])
+
+
 def cargar_documentos(pdf_dir: Optional[Path] = None) -> List[Document]:
     """
     Lee todos los PDF de la carpeta configurada y los devuelve como objetos Document.

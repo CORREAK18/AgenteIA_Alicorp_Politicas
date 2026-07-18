@@ -146,13 +146,34 @@ def sub_vectorstore_construir_en_lotes(
     return vectorstore
 
 
+def sub_vectorstore_huella_archivos(pdf_dir: Path) -> str:
+    """Calcula un hash SHA-256 basado en los archivos PDF de la carpeta y los embeddings activos."""
+    hasher = hashlib.sha256()
+    hasher.update(sub_vectorstore_identidad_embeddings().encode("utf-8"))
+
+    if pdf_dir.exists():
+        for archivo in sorted(pdf_dir.glob("*.pdf")):
+            try:
+                stat = archivo.stat()
+                hasher.update(archivo.name.encode("utf-8", errors="ignore"))
+                hasher.update(b"\0")
+                hasher.update(str(stat.st_size).encode("utf-8"))
+                hasher.update(b"\0")
+                hasher.update(str(stat.st_mtime).encode("utf-8"))
+                hasher.update(b"\0")
+            except OSError:
+                # Si falla al leer atributos de algún archivo, ignorar su mtime
+                hasher.update(archivo.name.encode("utf-8", errors="ignore"))
+
+    return hasher.hexdigest()
+
+
 def construir_o_cargar_vectorstore(
-    chunks: List[Document],
     modelo_embeddings: Embeddings,
 ) -> FAISS:
     """
     Carga el índice FAISS si sigue siendo válido, o lo reconstruye si cambió algo.
-    Válido significa que los archivos existen y la huella coincide con los chunks actuales.
+    Válido significa que los archivos existen y la huella coincide con los metadatos de los PDFs actuales.
     """
     proveedor = config.EMBEDDINGS_PROVIDER
     if modelo_embeddings is None or proveedor not in {"cohere", "gemini"}:
@@ -161,11 +182,9 @@ def construir_o_cargar_vectorstore(
             "Configura EMBEDDINGS_PROVIDER como 'cohere' o 'gemini' en el .env."
         )
 
-    if not chunks:
-        raise RuntimeError("No hay fragmentos de texto para construir el índice FAISS.")
-
     faiss_dir       = Path(config.FAISS_INDEX_DIR)
-    huella_actual   = sub_vectorstore_huella_chunks(chunks)
+    pdf_dir         = Path(config.PDF_DIR)
+    huella_actual   = sub_vectorstore_huella_archivos(pdf_dir)
     huella_guardada = sub_vectorstore_leer_huella(faiss_dir)
 
     indice_existe      = faiss_dir.exists() and sub_vectorstore_indice_completo(faiss_dir)
@@ -184,6 +203,14 @@ def construir_o_cargar_vectorstore(
         shutil.rmtree(faiss_dir)
 
     print(f"Construyendo nuevo índice FAISS en '{faiss_dir}'...")
+    
+    # Importaciones diferidas para evitar cargar PyMuPDF y Transformers (que consume >512MB RAM)
+    # a menos que realmente se necesite reconstruir el índice localmente.
+    from documentos import cargar_documentos, trocear_documentos
+    
+    docs = cargar_documentos(pdf_dir)
+    chunks = trocear_documentos(docs)
+    
     vectorstore = sub_vectorstore_construir_en_lotes(chunks, modelo_embeddings, faiss_dir)
 
     sub_vectorstore_guardar_manifiesto(faiss_dir, huella_actual, len(chunks))
