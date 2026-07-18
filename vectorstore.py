@@ -201,3 +201,22 @@ def construir_retriever(vectorstore: FAISS):
         search_type="similarity",
         search_kwargs={"k": NUMERO_CANDIDATOS},
     )
+def cargar_vectorstore_si_existe(modelo_embeddings):
+    faiss_dir = Path(config.FAISS_INDEX_DIR)
+
+    indice_completo = (
+        (faiss_dir / "index.faiss").exists()
+        and (faiss_dir / "index.pkl").exists()
+    )
+
+    if not indice_completo:
+        print("No existe un índice FAISS completo.")
+        return None
+
+    print(f"Cargando índice FAISS desde '{faiss_dir}'...")
+
+    return FAISS.load_local(
+        str(faiss_dir),
+        modelo_embeddings,
+        allow_dangerous_deserialization=True,
+    )
