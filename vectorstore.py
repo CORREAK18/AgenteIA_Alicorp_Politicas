@@ -34,7 +34,7 @@ def sub_vectorstore_identidad_embeddings() -> str:
 
 
 def sub_vectorstore_huella_chunks(chunks: List[Document]) -> str:
-    """Calcula un hash SHA-256 del contenido de todos los fragmentos más el modelo usado."""
+    """Calcula hash SHA-256 del contenido de los chunks e identidad de embeddings."""
     hasher = hashlib.sha256()
     hasher.update(sub_vectorstore_identidad_embeddings().encode("utf-8"))
 
@@ -45,7 +45,7 @@ def sub_vectorstore_huella_chunks(chunks: List[Document]) -> str:
         contenido = str(chunk.page_content)
         elementos.append((source, page, contenido))
 
-    # Ordenar para que el hash sea igual independientemente del orden de carga
+    # Ordenar elementos para que el hash sea determinista
     for source, page, contenido in sorted(elementos):
         hasher.update(source.encode("utf-8", errors="ignore"))
         hasher.update(b"\0")
@@ -58,12 +58,12 @@ def sub_vectorstore_huella_chunks(chunks: List[Document]) -> str:
 
 
 def sub_vectorstore_ruta_manifiesto(faiss_dir: Path) -> Path:
-    """Devuelve la ruta al JSON que guarda la huella del índice."""
+    """Devuelve la ruta al JSON del manifiesto del índice."""
     return faiss_dir / NOMBRE_MANIFIESTO
 
 
 def sub_vectorstore_leer_huella(faiss_dir: Path) -> str:
-    """Lee la huella guardada en el manifiesto. Devuelve cadena vacía si no existe."""
+    """Lee la huella guardada en el manifiesto."""
     ruta = sub_vectorstore_ruta_manifiesto(faiss_dir)
     if not ruta.exists():
         return ""
@@ -80,7 +80,7 @@ def sub_vectorstore_guardar_manifiesto(
     huella: str,
     cantidad_chunks: int,
 ) -> None:
-    """Guarda en disco el JSON con la huella del índice recién construido."""
+    """Guarda en disco la huella e identidad del índice."""
     datos = {
         "huella": huella,
         "cantidad_chunks": cantidad_chunks,
@@ -93,7 +93,7 @@ def sub_vectorstore_guardar_manifiesto(
 
 
 def sub_vectorstore_indice_completo(faiss_dir: Path) -> bool:
-    """Comprueba que los dos archivos necesarios de FAISS existan en disco."""
+    """Verifica la existencia de los archivos físicos de FAISS en disco."""
     return (
         (faiss_dir / "index.faiss").exists()
         and (faiss_dir / "index.pkl").exists()
@@ -105,10 +105,7 @@ def sub_vectorstore_construir_en_lotes(
     modelo_embeddings: Embeddings,
     faiss_dir: Path,
 ) -> FAISS:
-    """
-    Construye el índice FAISS enviando fragmentos en lotes para no saturar la API.
-    Guarda el progreso parcial en disco después de cada lote.
-    """
+    """Construye el índice FAISS por lotes con reintentos para no saturar APIs."""
     tamano_lote    = config.TAMANO_LOTE_EMBEDDINGS
     pausa_segundos = config.PAUSA_SEGUNDOS_EMBEDDINGS
     total_lotes    = (len(chunks) + tamano_lote - 1) // tamano_lote

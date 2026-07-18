@@ -69,7 +69,7 @@ def trocear_documentos(
     
     from langchain_text_splitters import RecursiveCharacterTextSplitter
     from transformers import AutoTokenizer
-    # Mide el tamaño en tokens, no en caracteres
+# Mide tamaño en tokens, no en caracteres
     tokenizer = AutoTokenizer.from_pretrained(config.HF_TOKENIZER_MODEL)
 
     splitter = RecursiveCharacterTextSplitter.from_huggingface_tokenizer(
@@ -101,10 +101,7 @@ def trocear_documentos(
 
 
 def generar_lista_politicas(docs: List[Document]) -> str:
-    """
-    Extrae los nombres únicos de los PDF cargados y los devuelve como lista con viñetas.
-    El triaje usa este texto para saber qué políticas existen.
-    """
+    """Extrae nombres únicos de PDFs cargados formateados como lista con viñetas."""
     nombres = sorted(
         {
             Path(doc.metadata.get("source", "")).stem

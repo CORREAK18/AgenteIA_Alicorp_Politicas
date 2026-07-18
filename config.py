@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-# Proveedor del LLM: quién responde preguntas y clasifica mensajes
+# Proveedor de LLM activo
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "cohere").strip().lower()
 
 COHERE_API_KEY         = os.getenv("COHERE_API_KEY", "").strip()
@@ -20,57 +20,36 @@ GEMINI_API_KEY    = os.getenv("GEMINI_API_KEY", "").strip()
 GEMINI_CHAT_MODEL = os.getenv("GEMINI_CHAT_MODEL", "gemini-2.0-flash").strip()
 
 if LLM_PROVIDER == "cohere" and not COHERE_API_KEY:
-    raise RuntimeError(
-        "Falta COHERE_API_KEY en el archivo .env. "
-        "Agrégala allí; nunca la escribas directamente en el código."
-    )
+    raise RuntimeError("Falta COHERE_API_KEY en el archivo .env.")
 
 if LLM_PROVIDER == "gemini" and not GEMINI_API_KEY:
-    raise RuntimeError(
-        "Falta GEMINI_API_KEY en el archivo .env para usar LLM_PROVIDER=gemini."
-    )
+    raise RuntimeError("Falta GEMINI_API_KEY en el archivo .env.")
 
 if LLM_PROVIDER not in {"cohere", "gemini"}:
-    raise RuntimeError(
-        f"LLM_PROVIDER='{LLM_PROVIDER}' no es válido. "
-        "Escribe 'cohere' o 'gemini' en el .env."
-    )
+    raise RuntimeError(f"LLM_PROVIDER='{LLM_PROVIDER}' no es válido (usa 'cohere' o 'gemini').")
 
 
-# Proveedor de embeddings: quién convierte texto en vectores para FAISS
+# Proveedor de embeddings activo (cohere o gemini)
 EMBEDDINGS_PROVIDER = os.getenv("EMBEDDINGS_PROVIDER", "cohere").strip().lower()
 
 COHERE_EMBEDDING_MODEL = os.getenv("COHERE_EMBEDDING_MODEL", "embed-v4.0").strip()
-
-GEMINI_EMBEDDING_MODEL = os.getenv(
-    "GEMINI_EMBEDDING_MODEL",
-    "models/gemini-embedding-exp-03-07",
-).strip()
+GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "models/gemini-embedding-exp-03-07").strip()
 
 if EMBEDDINGS_PROVIDER == "cohere" and not COHERE_API_KEY:
-    raise RuntimeError(
-        "Falta COHERE_API_KEY en el .env. "
-        "Es necesaria también para los embeddings de Cohere."
-    )
+    raise RuntimeError("Falta COHERE_API_KEY en el .env para los embeddings.")
 
 if EMBEDDINGS_PROVIDER == "gemini" and not GEMINI_API_KEY:
-    raise RuntimeError(
-        "Falta GEMINI_API_KEY en el .env. "
-        "Es necesaria también para los embeddings de Gemini."
-    )
+    raise RuntimeError("Falta GEMINI_API_KEY en el .env para los embeddings.")
 
 if EMBEDDINGS_PROVIDER not in {"cohere", "gemini"}:
-    raise RuntimeError(
-        f"EMBEDDINGS_PROVIDER='{EMBEDDINGS_PROVIDER}' no es válido. "
-        "Escribe 'cohere' o 'gemini' en el .env."
-    )
+    raise RuntimeError(f"EMBEDDINGS_PROVIDER='{EMBEDDINGS_PROVIDER}' no es válido.")
 
 
-# Rutas y configuración de procesamiento de documentos
+# Configuración del RAG y procesamiento de documentos
 PDF_DIR         = Path(os.getenv("PDF_DIR", "./Documentos"))
 FAISS_INDEX_DIR = os.getenv("FAISS_INDEX_DIR", "./faiss_indexv2")
 
-# Tokenizador local solo para medir el tamaño de los fragmentos al trocear PDFs
+# Tokenizador local para medir longitud de fragmentos
 HF_TOKENIZER_MODEL = os.getenv("HF_TOKENIZER_MODEL", "BAAI/bge-m3")
 
 TAMANO_LOTE_EMBEDDINGS    = int(os.getenv("TAMANO_LOTE_EMBEDDINGS", "20"))
