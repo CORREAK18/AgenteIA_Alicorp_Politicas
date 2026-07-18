@@ -63,8 +63,8 @@ def condensar_pregunta(
     llm: BaseChatModel,
 ) -> str:
     """
-    Reformula la pregunta usando el historial para que sea autónoma.
-    Si no hay historial, la devuelve sin cambios.
+    Convierte un mensaje dependiente del historial en uno autónomo.
+    No cambia la intención original ni inventa un tema.
     """
     if not historial:
         return pregunta_nueva
@@ -75,26 +75,40 @@ def condensar_pregunta(
     )
 
     prompt_condensacion = (
-        "Dado el siguiente historial de conversación y una nueva pregunta del usuario, "
-        "reformula la nueva pregunta como una pregunta informativa e independiente sobre "
-        "las políticas corporativas de Alicorp, incorporando el contexto necesario del historial. "
-        "La pregunta reformulada DEBE ser una consulta de información (¿Qué dice la política sobre...?, "
-        "¿Cuáles son las normas de...?, etc.), NUNCA una solicitud de acción o autorización. "
-        "Si la nueva pregunta ya es completamente independiente e informativa, devuélvela tal cual. "
-        "Devuelve SOLO la pregunta reformulada, sin explicaciones adicionales.\n\n"
-        f"Historial de conversación:\n{historial_texto}\n\n"
-        f"Nueva pregunta: {pregunta_nueva}\n\n"
-        "Pregunta reformulada:"
+        "Reformula el mensaje nuevo para que pueda entenderse sin leer el "
+        "historial. Utiliza el historial únicamente para resolver referencias "
+        "como 'eso', 'ese trámite', 'lo anterior', 'esa política' o temas "
+        "omitidos claramente relacionados con la conversación.\n\n"
+
+        "Reglas obligatorias:\n"
+        "- Conserva exactamente la intención original del usuario.\n"
+        "- No conviertas una solicitud de acción en una pregunta informativa.\n"
+        "- No conviertas un saludo o mensaje social en una consulta corporativa.\n"
+        "- No inventes políticas, trámites, personas, montos ni temas.\n"
+        "- Si no existe un antecedente claro, devuelve el mensaje sin cambios.\n"
+        "- No respondas la consulta.\n"
+        "- Devuelve únicamente el mensaje reformulado.\n\n"
+
+        f"Historial:\n{historial_texto}\n\n"
+        f"Mensaje nuevo: {pregunta_nueva}\n\n"
+        "Mensaje autónomo:"
     )
 
     respuesta = llm.invoke(
         [
-            SystemMessage(content="Eres un asistente que reformula preguntas para facilitar la búsqueda de información."),
+            SystemMessage(
+                content=(
+                    "Reescribes mensajes usando contexto conversacional sin "
+                    "inventar información ni cambiar la intención del usuario."
+                )
+            ),
             HumanMessage(content=prompt_condensacion),
         ]
     )
 
     pregunta_condensada = respuesta.content.strip()
-    print(f"[Memoria] Pregunta original  : '{pregunta_nueva}'")
-    print(f"[Memoria] Pregunta condensada: '{pregunta_condensada}'")
+
+    print(f"[MEMORIA] Pregunta original: '{pregunta_nueva}'")
+    print(f"[MEMORIA] Pregunta autónoma: '{pregunta_condensada}'")
+
     return pregunta_condensada

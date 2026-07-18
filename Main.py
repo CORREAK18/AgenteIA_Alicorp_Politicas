@@ -9,6 +9,7 @@ from typing import List
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 import uvicorn
 
@@ -115,8 +116,16 @@ class Citation(BaseModel):
 class TriageInfo(BaseModel):
     decision: str = Field(..., description="Decisión tomada en el triaje.")
     urgencia: str = Field(..., description="Nivel de urgencia detectado.")
-    campos_faltantes: List[str] = Field(default_factory=list, description="Lista de datos faltantes.")
 
+    campos_faltantes: List[str] = Field(
+        default_factory=list,
+        description="Lista de datos faltantes.",
+    )
+
+    usa_historial: bool = Field(
+        default=False,
+        description="Indica si la consulta necesitó el historial conversacional.",
+    )
 
 class ChatResponse(BaseModel):
     pregunta: str
@@ -198,9 +207,14 @@ def classify_question(req: ChatRequest):
     )
 
 
-@app.post("/api/chat", response_model=ChatResponse, summary="Enviar una consulta al agente")
+@app.post(
+    "/api/chat",
+    response_model=ChatResponse,
+    summary="Enviar una consulta al agente",
+)
 def ask_question(req: ChatRequest):
-    """Procesa una consulta usando memoria, triaje, RAG y verificación."""
+    """Procesa una consulta usando triaje, memoria, RAG y verificación."""
+
     if "grafo" not in state:
         raise HTTPException(status_code=503, detail="El agente no está listo.")
 
@@ -208,23 +222,60 @@ def ask_question(req: ChatRequest):
     thread_id = req.thread_id.strip() or "default"
 
     if not pregunta_original:
-        raise HTTPException(status_code=400, detail="La pregunta no puede estar vacía.")
+        raise HTTPException(
+            status_code=400,
+            detail="La pregunta no puede estar vacía.",
+        )
 
     try:
         with obtener_lock(thread_id):
             historial = obtener_historial(thread_id)
-            pregunta = condensar_pregunta(
-                pregunta_original,
-                historial,
-                state["llm"],
-            )
-            resultado = state["grafo"].invoke({"pregunta": pregunta})
 
+            # 1. Primero se clasifica exclusivamente el mensaje original.
+            triaje_inicial = ejecutar_triaje(
+                pregunta_original,
+                state["cadena_triaje"],
+                state["prompt_triaje"],
+            )
+
+            pregunta_para_grafo = pregunta_original
+            triaje_para_grafo = triaje_inicial
+
+            # 2. Solo se consulta la memoria cuando el triaje determina
+            #    semánticamente que el mensaje depende del historial.
+            if historial and triaje_inicial.get("usa_historial", False):
+                pregunta_para_grafo = condensar_pregunta(
+                    pregunta_original,
+                    historial,
+                    state["llm"],
+                )
+
+                # Se vuelve a clasificar la pregunta ahora autónoma.
+                triaje_para_grafo = ejecutar_triaje(
+                    pregunta_para_grafo,
+                    state["cadena_triaje"],
+                    state["prompt_triaje"],
+                )
+
+                # Conservamos el dato de que sí se utilizó memoria.
+                triaje_para_grafo["usa_historial"] = True
+
+            # 3. El grafo recibe y reutiliza el triaje ya calculado.
+            resultado = state["grafo"].invoke(
+                {
+                    "pregunta": pregunta_para_grafo,
+                    "triaje": triaje_para_grafo,
+                }
+            )
+
+            # 4. Formatear las fuentes recuperadas.
             citaciones_originales = resultado.get("citaciones") or []
             citaciones_formateadas = []
+
             for doc in citaciones_originales:
                 source = doc.metadata.get("source", "Desconocido")
                 filename = Path(source).name
+
                 try:
                     page = int(doc.metadata.get("page", 0)) + 1
                 except (TypeError, ValueError):
@@ -234,31 +285,82 @@ def ask_question(req: ChatRequest):
                     Citation(
                         texto=doc.page_content,
                         fuente=filename,
-                        pagina=page
+                        pagina=page,
                     )
                 )
 
+            # 5. Obtener el triaje final.
             triaje_datos = resultado.get("triaje") or {}
+
             triage_info = TriageInfo(
-                decision=triaje_datos.get("decision", "CONSULTAR_RAG"),
+                decision=triaje_datos.get(
+                    "decision",
+                    "PEDIR_MAS_INFORMACION",
+                ),
                 urgencia=triaje_datos.get("urgencia", "BAJA"),
-                campos_faltantes=triaje_datos.get("campos_faltantes") or []
+                campos_faltantes=triaje_datos.get(
+                    "campos_faltantes"
+                ) or [],
+                usa_historial=triaje_datos.get(
+                    "usa_historial",
+                    False,
+                ),
             )
 
-            respuesta_final = resultado.get("respuesta") or "No se pudo generar una respuesta a tu consulta."
-            guardar_turno(thread_id, pregunta_original, respuesta_final)
+            respuesta_final = (
+                resultado.get("respuesta")
+                or "No se pudo generar una respuesta a tu consulta."
+            )
+
+            # 6. Los mensajes sociales y fuera de ámbito no contaminan
+            #    la memoria del tema corporativo.
+            decision_final = triage_info.decision
+
+            if decision_final not in {"SALUDO", "FUERA_DE_AMBITO"}:
+                guardar_turno(
+                    thread_id,
+                    pregunta_original,
+                    respuesta_final,
+                )
 
         return ChatResponse(
             pregunta=pregunta_original,
             respuesta=respuesta_final,
             accion_final=resultado.get("accion_final") or "PEDIR_INFO",
             triaje=triage_info,
-            citaciones=citaciones_formateadas
+            citaciones=citaciones_formateadas,
         )
 
-    except Exception as e:
-        print(f"Error procesando la consulta '{pregunta_original}': {e}")
-        raise HTTPException(status_code=500, detail=f"Error interno al procesar la consulta: {str(e)}")
+    except Exception as error:
+        print(
+            f"Error procesando la consulta "
+            f"'{pregunta_original}': {error}"
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error interno al procesar la consulta: {error}",
+        )
+
+# La compilación de React se sirve desde el mismo proceso y dominio que la API.
+# Este montaje debe ir después de declarar todas las rutas /api.
+FRONTEND_DIST = Path(__file__).resolve().parent / "frontend" / "dist"
+
+if FRONTEND_DIST.exists():
+    app.mount(
+        "/",
+        StaticFiles(directory=str(FRONTEND_DIST), html=True),
+        name="frontend",
+    )
+else:
+    @app.get("/", include_in_schema=False)
+    def frontend_no_compilado():
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "El frontend todavía no está compilado. Ejecuta: "
+                "cd frontend && npm install && npm run build"
+            ),
+        )
 
 
 if __name__ == "__main__":

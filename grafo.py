@@ -34,9 +34,24 @@ def construir_grafo(
     """
 
     def nodo_triaje(state: AgentState) -> AgentState:
-        """Clasifica la pregunta y decide qué camino tomar."""
+        """
+        Reutiliza el triaje realizado por Main.py.
+        Si el grafo fue invocado directamente, realiza el triaje normalmente.
+        """
         print("[GRAFO] Nodo: triaje")
-        resultado = ejecutar_triaje(state["pregunta"], cadena_triaje, prompt_triaje)
+
+        triaje_precalculado = state.get("triaje")
+
+        if triaje_precalculado:
+            print("[GRAFO] Reutilizando triaje precalculado")
+            return {"triaje": triaje_precalculado}
+
+        print("[GRAFO] No se recibió triaje previo; ejecutando triaje")
+        resultado = ejecutar_triaje(
+            state["pregunta"],
+            cadena_triaje,
+            prompt_triaje,
+        )
         return {"triaje": resultado}
 
     def nodo_consultar_rag(state: AgentState) -> AgentState:
@@ -71,7 +86,7 @@ def construir_grafo(
         return {
             "respuesta":    "No lo sé.",
             "citaciones":   [],
-            "accion_final": "PEDIR_INFO",
+            "accion_final": "SIN_INFORMACION",
         }
 
     def nodo_pedir_info(state: AgentState) -> AgentState:
@@ -84,9 +99,10 @@ def construir_grafo(
         campos             = campos_verificador or campos_triaje
 
         if campos:
+            campos_limpios = [str(c).replace("_", " ").strip() for c in campos]
             respuesta = (
                 "Para ayudarte mejor necesito más información. "
-                "Por favor indícame: " + ", ".join(campos) + "."
+                "Por favor indícame: " + ", ".join(campos_limpios) + "."
             )
         else:
             respuesta = "Por favor indícame qué política o tema deseas consultar."
