@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import List
 
 from fastapi import FastAPI, HTTPException
+from langchain_community.vectorstores import FAISS
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -15,7 +16,7 @@ import uvicorn
 
 import config
 from busqueda_rag import construir_cadena_rag, construir_cadena_verificacion
-from documentos import cargar_documentos, generar_lista_politicas, trocear_documentos
+from documentos import cargar_documentos, generar_lista_politicas
 from grafo import construir_grafo, guardar_diagrama_grafo
 from memoria import (
     borrar_historial,
@@ -30,8 +31,7 @@ from triaje import (
     construir_prompt_triaje,
     ejecutar_triaje,
 )
-from vectorstore import construir_o_cargar_vectorstore, construir_retriever
-
+from vectorstore import construir_retriever
 
 # Estado global en memoria para guardar el grafo compilado y componentes cargados
 state = {}
@@ -47,12 +47,13 @@ async def lifespan(app: FastAPI):
 
         docs = cargar_documentos()
         lista_politicas = generar_lista_politicas(docs)
-        chunks = trocear_documentos(docs)
+        
 
         prompt_triaje = construir_prompt_triaje(lista_politicas)
         cadena_triaje = construir_cadena_triaje(llm)
 
-        vectorstore = construir_o_cargar_vectorstore(chunks, modelo_embeddings)
+        print(f"Cargando índice FAISS incluido desde '{config.FAISS_INDEX_DIR}'...")
+        vectorstore = FAISS.load_local(str(config.FAISS_INDEX_DIR), modelo_embeddings, allow_dangerous_deserialization=True)
         retriever = construir_retriever(vectorstore)
 
         cadena_rag = construir_cadena_rag(llm)

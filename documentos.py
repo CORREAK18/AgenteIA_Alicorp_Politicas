@@ -6,8 +6,7 @@ from typing import List, Optional
 
 from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_core.documents import Document
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from transformers import AutoTokenizer
+
 
 import config
 
@@ -56,7 +55,9 @@ def trocear_documentos(
     """
     chunk_size    = chunk_size    or config.CHUNK_SIZE_TOKENS
     chunk_overlap = chunk_overlap or config.CHUNK_OVERLAP_TOKENS
-
+    
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+    from transformers import AutoTokenizer
     # Mide el tamaño en tokens, no en caracteres
     tokenizer = AutoTokenizer.from_pretrained(config.HF_TOKENIZER_MODEL)
 
