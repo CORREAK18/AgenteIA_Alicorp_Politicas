@@ -10,28 +10,38 @@ automáticamente. Primero muestra un formulario para que el usuario revise y
 complete la información. El correo se envía únicamente después de confirmar el
 formulario.
 
-## 🌐 Aplicación desplegada
+## 🔗 Enlaces de entrega del Challenge
 
-La aplicación está desplegada en Render:
+- **Código fuente — rama oficial de entrega:**
+  [Api-Agente](https://github.com/CORREAK18/AgenteIA_Alicorp_Politicas/tree/Api-Agente)
+- **Aplicación desplegada en Render:**
+  [https://agente-alicorp.onrender.com](https://agente-alicorp.onrender.com)
 
-**https://agente-alicorp.onrender.com**
+> **Rama oficial del Challenge:** `Api-Agente` contiene la aplicación completa
+> y es la rama conectada actualmente al despliegue de Render. Por ese motivo,
+> esta es la rama cuyo enlace se presenta como entrega del proyecto. La rama
+> `main` conserva una copia completa y consolidada de la misma solución.
 
 > Si el servicio se encuentra inactivo, la primera carga puede tardar mientras
 > Render lo inicia nuevamente.
 
 ## 🌿 Ramas del repositorio
 
-El repositorio conserva el prototipo inicial y la versión web completa.
+El repositorio conserva la rama oficial de entrega, una copia consolidada y el
+prototipo inicial.
 
 | Rama | Contenido |
 | --- | --- |
-| `main` | Prototipo inicial ejecutado desde Python. No contiene API REST, frontend React ni README. |
-| `Api-Agente` | Versión completa y actual: FastAPI, React, LangGraph, RAG, memoria, verificación, tickets por correo, Docker y despliegue en Render. |
+| `Api-Agente` | Rama oficial de entrega del Challenge. Contiene la versión completa, está conectada a Render e incluye FastAPI, React, LangGraph, RAG, memoria, verificación, tickets, Docker y pruebas. |
+| `main` | Copia completa y consolidada de la solución. Conserva el mismo proyecto, pero no es la rama utilizada actualmente por el despliegue de Render. |
+| `prototipo` | Versión inicial del agente, conservada para mostrar la evolución del proyecto. |
 
-El proyecto tiene dos ramas: `main` conserva el prototipo y `Api-Agente`
-contiene la aplicación web completa.
+Las ramas `main` y `Api-Agente` contienen la aplicación web completa. Para la
+entrega del Challenge se utiliza `Api-Agente` porque es la rama desde la que
+Render construye y publica actualmente la aplicación.
 
-> La rama utilizada para el desarrollo y despliegue es `Api-Agente`.
+> **Enlace para revisar el código del Challenge:**
+> [https://github.com/CORREAK18/AgenteIA_Alicorp_Politicas/tree/Api-Agente](https://github.com/CORREAK18/AgenteIA_Alicorp_Politicas/tree/Api-Agente)
 
 ## ✨ Funcionalidades principales
 
@@ -46,7 +56,7 @@ contiene la aplicación web completa.
 - Formulario para revisar y enviar solicitudes que requieren gestión.
 - Envío de tickets por correo mediante SMTP.
 - API REST documentada automáticamente con FastAPI.
-- Suite de 44 casos de prueba para triaje, RAG y memoria.
+- Suite de 45 casos de prueba para triaje, RAG y memoria.
 
 ## 🛠️ Tecnologías
 
@@ -210,7 +220,7 @@ contenido cuando la aplicación se ejecuta con `python Main.py`.
 | `frontend/src/App.jsx` | Contiene el chat y consume `/api/chat`. |
 | `frontend/src/TicketPage.jsx` | Contiene el formulario y consume `/api/tickets`. |
 | `frontend/src/styles.css` | Define los estilos del chat y del formulario. |
-| `test_agente_ligero.py` | Ejecuta los 44 casos de prueba. |
+| `test_agente_ligero.py` | Ejecuta los 45 casos de prueba. |
 | `reporte_pruebas.md` | Guarda el resultado de las pruebas ejecutadas. |
 | `Dockerfile` | Compila React y prepara FastAPI para producción. |
 | `.env.example` | Plantilla sin credenciales para crear el archivo privado `.env`. |
@@ -234,9 +244,10 @@ Para eso se necesita:
 - Una cuenta de correo con SMTP solamente si se probará el formulario de
   tickets.
 
-`frontend/dist` ya está incluido en la rama `Api-Agente`. Por eso **Node.js no
-es necesario para abrir la aplicación existente**. Node.js 22.12.0 y npm solo
-son necesarios si se modificará y volverá a compilar el frontend.
+`frontend/dist` ya está incluido en las ramas `main` y `Api-Agente`. Por eso
+**Node.js no es necesario para abrir la aplicación existente**. Node.js
+22.12.0 y npm solo son necesarios si se modificará y volverá a compilar el
+frontend.
 
 Docker tampoco es obligatorio para trabajar localmente. El `Dockerfile` se
 utiliza principalmente para el despliegue en Render y queda como una alternativa
@@ -301,12 +312,11 @@ Si aparece `python no se reconoce`, Python no se agregó al `PATH`. Se debe
 reabrir el instalador, activar **Add Python to PATH** y abrir PowerShell
 nuevamente.
 
-### Paso 2. Descargar la rama correcta
+### Paso 2. Descargar la rama oficial del Challenge
 
-La aplicación completa está en `Api-Agente`; la rama `main` solo contiene el
-prototipo.
-
-Con Git:
+La rama que debe utilizarse para revisar, ejecutar o evaluar la entrega es
+`Api-Agente`, porque contiene la aplicación completa y está conectada al
+despliegue de Render:
 
 ```powershell
 git clone --branch Api-Agente --single-branch https://github.com/CORREAK18/AgenteIA_Alicorp_Politicas.git
@@ -314,16 +324,19 @@ cd AgenteIA_Alicorp_Politicas
 git branch --show-current
 ```
 
-El último comando debe mostrar `Api-Agente`.
+El último comando debe mostrar `Api-Agente`. La rama `main` también conserva
+una copia completa del proyecto, pero no es la fuente del despliegue actual.
 
 Sin Git:
 
-1. Abrir la
-   [rama Api-Agente en GitHub](https://github.com/CORREAK18/AgenteIA_Alicorp_Politicas/tree/Api-Agente).
-2. Presionar **Code** y después **Download ZIP**.
-3. Descomprimir el ZIP.
-4. Abrir la carpeta `AgenteIA_Alicorp_Politicas-Api-Agente`.
-5. Hacer clic derecho dentro de la carpeta y seleccionar **Abrir en Terminal**.
+1. Abrir el
+   [repositorio en GitHub](https://github.com/CORREAK18/AgenteIA_Alicorp_Politicas).
+2. Seleccionar la rama
+   [Api-Agente](https://github.com/CORREAK18/AgenteIA_Alicorp_Politicas/tree/Api-Agente),
+   que corresponde a la entrega y al despliegue de Render.
+3. Presionar **Code** y después **Download ZIP**.
+4. Descomprimir el ZIP.
+5. Abrir la carpeta extraída y seleccionar **Abrir en Terminal**.
 
 ### Paso 3. Verificar la carpeta del proyecto
 
@@ -541,7 +554,7 @@ Acciones finales posibles:
 
 ## 🧪 Pruebas automatizadas
 
-La suite contiene 44 casos de triaje, RAG y memoria. Primero debe iniciarse el
+La suite contiene 45 casos de triaje, RAG y memoria. Primero debe iniciarse el
 backend:
 
 ```bash
@@ -576,7 +589,7 @@ en `reporte_pruebas.md` después de cada caso completado.
 
 ### Resultado documentado
 
-El reporte disponible corresponde a una ejecución parcial de cuatro casos. No representa todavía la ejecución completa de los 44 casos definidos.
+El reporte disponible corresponde a una ejecución parcial de cuatro casos. No representa todavía la ejecución completa de los 45 casos definidos.
 
 | Métrica | Resultado |
 | --- | ---: |
@@ -648,7 +661,9 @@ Errores básicos:
 
 ## ☁️ Despliegue en Render
 
-La rama `Api-Agente` está preparada para desplegarse como un servicio Docker.
+La rama `Api-Agente` contiene la versión completa y es la fuente actualmente
+conectada al servicio de Render. La rama `main` contiene la misma aplicación
+consolidada, pero los despliegues automáticos se generan desde `Api-Agente`.
 Render instala las dependencias, compila React y ejecuta `python Main.py`.
 
 La aplicación utiliza la variable `PORT` proporcionada por Render y sirve el
