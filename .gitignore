@@ -22,3 +22,12 @@ faiss_index/
 
 # Dependencias instaladas localmente por error
 node_modules/
+
+
+# Caché generada por Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Configuración local de VS Code
+.vscode/
