@@ -54,7 +54,7 @@ Decisiones y reglas:
 Preguntar cómo se hace una gestión es CONSULTAR_RAG; pedir que la ejecutes es
 ABRIR_TICKET. Una consulta corporativa concreta va a CONSULTAR_RAG aunque no
 sepas si el PDF contiene la respuesta: el RAG comprobará el respaldo.
-Usa urgencia BAJA salvo en un ABRIR_TICKET que justifique MEDIA o ALTA.
+Urgencia por decisión: ABRIR_TICKET es ALTA, PEDIR_MAS_INFORMACION es MEDIA, y todas las demás decisiones (SALUDO, FUERA_DE_AMBITO, LISTAR_POLITICAS, CONSULTAR_RAG) son obligatoriamente BAJA.
 campos_faltantes debe estar vacío salvo en PEDIR_MAS_INFORMACION.
 
 Ejemplos importantes:
@@ -242,8 +242,12 @@ def ejecutar_triaje(mensaje: str, cadena_triaje, prompt_triaje: str) -> Dict:
     duracion = time.perf_counter() - inicio
     print(f"[TRIAJE] Respondió en {duracion:.2f}s")
 
-    # Solo ABRIR_TICKET puede tener urgencia MEDIA o ALTA
-    if resultado["decision"] != "ABRIR_TICKET":
+    # Forzar niveles de urgencia según el tipo de decisión
+    if resultado["decision"] == "ABRIR_TICKET":
+        resultado["urgencia"] = "ALTA"
+    elif resultado["decision"] == "PEDIR_MAS_INFORMACION":
+        resultado["urgencia"] = "MEDIA"
+    else:
         resultado["urgencia"] = "BAJA"
 
     # Solo PEDIR_MAS_INFORMACION puede tener campos_faltantes
