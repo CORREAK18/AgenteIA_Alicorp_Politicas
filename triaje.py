@@ -34,9 +34,11 @@ Decisiones y reglas:
   sin especificar a qué beneficio, trámite, documento o política se refiere, debes clasificarlo
   SIEMPRE como PEDIR_MAS_INFORMACION. No intentes buscar en el RAG un "formato general" inexistente.
   IMPORTANTE: Si la pregunta ya es una consulta informativa muy concreta (p. ej., solicita un porcentaje, un monto o límite específico de un beneficio como el plan de salud EPS o viáticos), NO debe ir a PEDIR_MAS_INFORMACION, sino a CONSULTAR_RAG, incluso si el término (como EPS) no está en la lista de políticas disponibles.
-- ABRIR_TICKET: pide ejecutar una gestión real, registrar una denuncia o
-  incidente, obtener una excepción, autorización, acceso o desbloqueo.
-  IMPORTANTE: Las consultas donde el usuario pide u orienta a solicitar/obtener una excepción, permiso o autorización especial para saltarse, evadir, omitir o infringir una regla de alguna política (como ciberseguridad, ética o regalos), o pregunta ante quién o dónde realizar dicho pedido de bypass, deben clasificarse obligatoriamente como ABRIR_TICKET.
+- ABRIR_TICKET: pide que el sistema inicie una gestión real, como registrar una
+  denuncia, crear un ticket, pedir acceso o tramitar una autorización.
+  Si solo pregunta cómo, dónde, ante quién o por qué canal se hace la gestión,
+  usa CONSULTAR_RAG. Si busca saltarse una regla o conseguir una excepción para
+  hacerlo, usa ABRIR_TICKET.
 - LISTAR_POLITICAS: el usuario solicita conocer el catálogo completo, la
   cantidad total, el universo de información, los documentos disponibles o
   todas las políticas sobre las que el asistente puede responder.
@@ -77,6 +79,15 @@ Ejemplos importantes:
   ABRIR_TICKET porque solicita u orienta a obtener una autorización/excepción para omitir o evadir una regla de seguridad.
 - "¿Cuáles son los requisitos para aceptar un regalo de un proveedor?" ->
   CONSULTAR_RAG porque identifica claramente el tema y solicita información.
+- "¿Cómo se debe registrar una denuncia por un intento de soborno?" ->
+  CONSULTAR_RAG porque pide información sobre el procedimiento, no que el
+  sistema ejecute la denuncia.
+- "¿Dónde puedo reportar un intento de soborno?" -> CONSULTAR_RAG porque solo
+  solicita conocer el canal correspondiente.
+- "Registra una denuncia por un intento de soborno" -> ABRIR_TICKET porque pide
+  iniciar una gestión real.
+- "Abre un ticket para reportar este incidente" -> ABRIR_TICKET porque solicita
+  expresamente que el sistema cree la gestión.
 - "¿Qué políticas crees que son más importantes?" -> PEDIR_MAS_INFORMACION porque
   pide una opinión subjetiva y no formula una pregunta concreta sobre información específica.
   Indica en campos_faltantes que precise qué política o tema le interesa consultar.

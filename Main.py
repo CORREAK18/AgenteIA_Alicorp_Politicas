@@ -31,6 +31,7 @@ from triaje import (
     construir_prompt_triaje,
     ejecutar_triaje,
 )
+from tickets import TicketRequest, TicketResponse, enviar_ticket_por_correo
 from vectorstore import (
     construir_o_cargar_vectorstore,
     construir_retriever,
@@ -167,6 +168,20 @@ def delete_historial(thread_id: str):
     """Borra el historial de conversación de un hilo específico."""
     borrar_historial(thread_id)
     return {"mensaje": f"Historial de la sesión '{thread_id}' eliminado correctamente."}
+
+
+@app.post("/api/tickets", response_model=TicketResponse)
+def crear_ticket(ticket: TicketRequest):
+    """Recibe el formulario y envía el correo."""
+    try:
+        return enviar_ticket_por_correo(ticket)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except RuntimeError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    except Exception as error:
+        print(f"Error enviando ticket: {type(error).__name__}: {error}")
+        raise HTTPException(status_code=502, detail="No se pudo enviar el ticket.") from error
 
 
 @app.post("/api/triaje", response_model=TriageOnlyResponse, summary="Clasificar una consulta sin ejecutar el RAG")

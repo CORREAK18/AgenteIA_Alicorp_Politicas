@@ -115,7 +115,7 @@ def construir_grafo(
         }
 
     def nodo_abrir_ticket(state: AgentState) -> AgentState:
-        """El usuario quiere ejecutar una gestión real; se registra el pedido."""
+        """Indica al frontend que debe ofrecer el formulario de ticket."""
         print("[GRAFO] Nodo: abrir_ticket")
         urgencia_verificador = (state.get("verificacion_rag") or {}).get("urgencia")
         urgencia_triaje      = (state.get("triaje") or {}).get("urgencia", "BAJA")
@@ -123,8 +123,9 @@ def construir_grafo(
 
         return {
             "respuesta": (
-                f"Tu solicitud requiere gestión directa. Se abrirá un ticket "
-                f"con urgencia {urgencia}. Pedido registrado: {state['pregunta']}."
+                f"Esta solicitud requiere una gestión directa con urgencia "
+                f"{urgencia}. Para continuar, completa el formulario del ticket. "
+                "Podrás revisar y ampliar la información antes de enviarla."
             ),
             "citaciones":   [],
             "accion_final": "ABRIR_TICKET",

@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import TicketPage from "./TicketPage";
 
 // En produccion React y FastAPI comparten dominio, por eso la URL base queda
 // vacia y las llamadas son relativas (/api/chat, /health, etc.). Vite usa el
@@ -192,7 +193,7 @@ function CitationList({ citations }) {
   );
 }
 
-function Message({ message }) {
+function Message({ message, onOpenTicket }) {
   const isUser = message.role === "user";
   const action = ACTION_LABELS[message.action] || ACTION_LABELS.SALUDO;
 
@@ -234,6 +235,16 @@ function Message({ message }) {
           </div>
         )}
         <CitationList citations={message.citations} />
+        {!isUser && message.action === "ABRIR_TICKET" && message.ticketDraft && (
+          <button
+            type="button"
+            className="ticket-action-button"
+            onClick={() => onOpenTicket(message.ticketDraft)}
+          >
+            <Send size={15} />
+            Completar ticket
+          </button>
+        )}
       </div>
     </motion.article>
   );
@@ -399,6 +410,7 @@ export default function App() {
   const [policies, setPolicies] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [policiesOpen, setPoliciesOpen] = useState(false);
+  const [ticketDraft, setTicketDraft] = useState(null);
   const scrollRef = useRef(null);
   const textareaRef = useRef(null);
 
@@ -562,6 +574,14 @@ export default function App() {
         content: data.respuesta || "El agente no devolvió contenido.",
         action: data.accion_final,
         triage: data.triaje,
+        ticketDraft:
+          data.accion_final === "ABRIR_TICKET"
+            ? {
+                preguntaOriginal: question,
+                urgencia: data.triaje?.urgencia || "BAJA",
+                threadId: conversationId,
+              }
+            : null,
         citations: (data.citaciones || []).map((citation) => ({
           ...citation,
           // Evita llenar localStorage con fragmentos PDF excesivamente largos.
@@ -604,6 +624,16 @@ export default function App() {
       event.preventDefault();
       sendMessage();
     }
+  }
+
+  if (ticketDraft) {
+    return (
+      <TicketPage
+        draft={ticketDraft}
+        apiUrl={API_URL}
+        onBack={() => setTicketDraft(null)}
+      />
+    );
   }
 
   return (
@@ -735,7 +765,11 @@ export default function App() {
               <div className="message-list">
                 <AnimatePresence initial={false}>
                   {activeConversation.messages.map((message) => (
-                    <Message message={message} key={message.id} />
+                    <Message
+                      message={message}
+                      key={message.id}
+                      onOpenTicket={setTicketDraft}
+                    />
                   ))}
                   {pendingConversationId === activeConversation.id && <ThinkingMessage key="thinking" />}
                 </AnimatePresence>

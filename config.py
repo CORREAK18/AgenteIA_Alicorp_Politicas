@@ -58,3 +58,12 @@ CHUNK_SIZE_TOKENS         = int(os.getenv("CHUNK_SIZE_TOKENS", "800"))
 CHUNK_OVERLAP_TOKENS      = int(os.getenv("CHUNK_OVERLAP_TOKENS", "120"))
 
 MOSTRAR_MULTIQUERIES = os.getenv("MOSTRAR_MULTIQUERIES", "false").strip().lower() == "true"
+
+
+# Correo usado para enviar los tickets
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com").strip()
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "").strip()
+SMTP_APP_PASSWORD = os.getenv("SMTP_APP_PASSWORD", "").replace(" ", "").strip()
+TICKET_DESTINO = os.getenv("TICKET_DESTINO", "").strip()
+SMTP_TIMEOUT_SECONDS = int(os.getenv("SMTP_TIMEOUT_SECONDS", "30"))
