@@ -27,10 +27,9 @@ El repositorio conserva el prototipo inicial y la versión web completa.
 | --- | --- |
 | `main` | Prototipo inicial ejecutado desde Python. No contiene API REST, frontend React ni README. |
 | `Api-Agente` | Versión completa y actual: FastAPI, React, LangGraph, RAG, memoria, verificación, tickets por correo, Docker y despliegue en Render. |
-| `Api-Agente-Completo` | Copia de la versión completa. Actualmente apunta al mismo commit que `Api-Agente`. |
 
-Aunque GitHub muestra tres ramas, en la práctica existen dos versiones del
-proyecto: el prototipo de `main` y la aplicación completa de `Api-Agente`.
+El proyecto tiene dos ramas: `main` conserva el prototipo y `Api-Agente`
+contiene la aplicación web completa.
 
 > La rama utilizada para el desarrollo y despliegue es `Api-Agente`.
 
@@ -53,8 +52,8 @@ proyecto: el prototipo de `main` y la aplicación completa de `Api-Agente`.
 
 | Capa | Tecnologías |
 | --- | --- |
-| Frontend | React 19, Vite 7, Framer Motion, Lucide React y React Markdown |
-| API | Python 3.11, FastAPI, Uvicorn y Pydantic |
+| Frontend | Node.js 22.12.0, React 19, Vite 7, Framer Motion, Lucide React y React Markdown |
+| API | Python 3.13.2 en desarrollo local, FastAPI, Uvicorn y Pydantic |
 | Orquestación | LangGraph y LangChain |
 | Modelos de IA | Cohere o Google Gemini |
 | Búsqueda RAG | FAISS, embeddings y recuperación semántica |
@@ -174,7 +173,6 @@ Backend/
 ├── reporte_pruebas.md
 ├── requirements.txt
 ├── Dockerfile
-├── INSTRUCCIONES_TICKETS.md
 ├── Documentos/
 ├── faiss_indexv2/
 └── frontend/
@@ -214,11 +212,17 @@ contenido cuando la aplicación se ejecuta con `python Main.py`.
 | `test_agente_ligero.py` | Ejecuta los 44 casos de prueba. |
 | `reporte_pruebas.md` | Guarda el resultado de las pruebas ejecutadas. |
 | `Dockerfile` | Compila React y prepara FastAPI para producción. |
+| `INSTRUCCIONES_TICKETS.md` *(histórico)* | Documentó inicialmente la instalación y el funcionamiento de los tickets por correo. |
+
+`INSTRUCCIONES_TICKETS.md` fue agregado en el commit `cb115d5`. Posteriormente,
+su contenido se integró en este README y el archivo fue retirado en el commit
+`c1018e3`. Aunque ya no aparece en la estructura actual, permanece disponible
+en el historial de Git.
 
 ## ⚙️ Requisitos previos
 
-- Python 3.13.2
-- Node.js v22.12.0 y npm.
+- Python 3.13.2.
+- Node.js 22.12.0 y npm.
 - Credenciales válidas para Cohere o Gemini.
 - Una cuenta de correo técnico con acceso SMTP para enviar tickets.
 - Git, si el proyecto se clonará desde GitHub.
@@ -324,8 +328,14 @@ cd frontend
 npm run dev
 ```
 
-Vite abrirá la interfaz en `http://localhost:5173` y redirigirá `/api` y
-`/health` hacia FastAPI.
+Mientras `npm run dev` esté activo, la versión de desarrollo se abre en
+`http://localhost:5173`. Vite redirige `/api` y `/health` hacia FastAPI, que
+continúa ejecutándose en el puerto `8000`.
+
+Este modo se utiliza solamente para modificar el frontend con recarga
+automática. En la ejecución normal, después de `npm run build` y
+`python Main.py`, FastAPI sirve la interfaz directamente en
+`http://localhost:8000`; en ese caso no es necesario abrir el puerto `5173`.
 
 Después de modificar el frontend, ejecuta nuevamente `npm run build` si deseas
 probarlo directamente desde `python Main.py`.
@@ -424,8 +434,9 @@ Ejecutar el contenedor con la configuración privada:
 docker run --env-file .env -p 8000:8000 agente-alicorp
 ```
 
-El `Dockerfile` utiliza dos etapas: Node.js compila el frontend y Python ejecuta
-FastAPI en la imagen final.
+El `Dockerfile` utiliza dos etapas: `node:22-alpine` compila el frontend y
+`python:3.11-slim` ejecuta FastAPI en la imagen final. Estas son las versiones
+del contenedor y no reemplazan las versiones instaladas en el equipo local.
 
 ## ☁️ Despliegue en Render
 
