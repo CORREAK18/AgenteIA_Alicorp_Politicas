@@ -576,7 +576,7 @@ en `reporte_pruebas.md` después de cada caso completado.
 
 ### Resultado documentado
 
-El reporte disponible corresponde a una ejecución parcial de cuatro casos. No representa todavía la ejecución completa de los 45 casos definidos.
+El reporte disponible corresponde a una ejecución parcial de cuatro casos. No representa todavía la ejecución completa de los 44 casos definidos.
 
 | Métrica | Resultado |
 | --- | ---: |
