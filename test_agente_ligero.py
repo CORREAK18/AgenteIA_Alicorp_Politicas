@@ -1,5 +1,7 @@
 # Suite de pruebas del agente Alicorp con control de carga.
-# Ejecuta los casos de forma secuencial con pausas y descansos entre solicitudes.
+# Ejecuta los casos de forma secuencial contra /api/chat para validar la acción
+# y conservar la respuesta completa que recibiría el usuario.
+# Incluye pausas y descansos entre solicitudes.
 # Admite filtros por grupo (triaje / rag) y por rango de número de caso.
 #
 # Ejemplos de uso:
@@ -72,11 +74,11 @@ CASOS_DE_PRUEBA = [
     {"pregunta": "¿Qué principios establece la política para proteger la información de clientes y colaboradores?", "esperado": "AUTO_RESOLVER", "tipo_respuesta": "rag_exitoso", "categoria": "Triaje -> RAG -> Verificador -> Exitoso", "grupo": "rag"},
 
     # RAG SIN INFORMACIÓN
-    {"pregunta": "¿Cuál es el monto máximo permitido para los viáticos de viaje de trabajo nacional?",  "esperado": "PEDIR_INFO", "tipo_respuesta": "no_se", "categoria": "Triaje -> RAG -> Verificador -> No sé", "grupo": "rag"},
-    {"pregunta": "¿Cuántos días hábiles de licencia por mudanza me corresponden por ley en la empresa?","esperado": "PEDIR_INFO", "tipo_respuesta": "no_se", "categoria": "Triaje -> RAG -> Verificador -> No sé", "grupo": "rag"},
-    {"pregunta": "¿Cómo puedo realizar la solicitud para el préstamo corporativo de vivienda?",          "esperado": "PEDIR_INFO", "tipo_respuesta": "no_se", "categoria": "Triaje -> RAG -> Verificador -> No sé", "grupo": "rag"},
-    {"pregunta": "¿Cuál es el porcentaje de cobertura del plan de salud EPS para mis cónyuges?",        "esperado": "PEDIR_INFO", "tipo_respuesta": "no_se", "categoria": "Triaje -> RAG -> Verificador -> No sé", "grupo": "rag"},
-    {"pregunta": "¿Cómo puedo pedir el reembolso por estudios de maestría o diplomado externo?",        "esperado": "PEDIR_INFO", "tipo_respuesta": "no_se", "categoria": "Triaje -> RAG -> Verificador -> No sé", "grupo": "rag"},
+    {"pregunta": "¿Cuál es el monto máximo permitido para los viáticos de viaje de trabajo nacional?",  "esperado": "SIN_INFORMACION", "tipo_respuesta": "no_se", "categoria": "Triaje -> RAG -> Verificador -> No sé", "grupo": "rag"},
+    {"pregunta": "¿Cuántos días hábiles de licencia por mudanza me corresponden por ley en la empresa?","esperado": "SIN_INFORMACION", "tipo_respuesta": "no_se", "categoria": "Triaje -> RAG -> Verificador -> No sé", "grupo": "rag"},
+    {"pregunta": "¿Cómo puedo realizar la solicitud para el préstamo corporativo de vivienda?",          "esperado": "SIN_INFORMACION", "tipo_respuesta": "no_se", "categoria": "Triaje -> RAG -> Verificador -> No sé", "grupo": "rag"},
+    {"pregunta": "¿Cuál es el porcentaje de cobertura del plan de salud EPS para mis cónyuges?",        "esperado": "SIN_INFORMACION", "tipo_respuesta": "no_se", "categoria": "Triaje -> RAG -> Verificador -> No sé", "grupo": "rag"},
+    {"pregunta": "¿Cómo puedo pedir el reembolso por estudios de maestría o diplomado externo?",        "esperado": "SIN_INFORMACION", "tipo_respuesta": "no_se", "categoria": "Triaje -> RAG -> Verificador -> No sé", "grupo": "rag"},
 
     # TICKETS DIRECTOS DESDE TRIAJE
     {"pregunta": "¿Puedo solicitar una excepción para recibir un regalo de un proveedor que excede los montos?",           "esperado": "ABRIR_TICKET", "categoria": "Triaje -> Abrir Ticket", "grupo": "triaje"},
@@ -256,18 +258,27 @@ def escribir_reporte_md(exitosos: int, fallidos: int, detalles: list, interrumpi
 
         archivo.write("## Detalle de los Casos de Prueba\n\n")
         archivo.write(
-            "| # | Categoría | Pregunta | Acción Esperada | "
-            "Acción Obtenida | Validación | Duración | Estado |\n"
+            "| # | Categoría | Pregunta | Respuesta del Agente | "
+            "Acción Esperada | Acción Obtenida | Validación | Duración | Estado |\n"
         )
-        archivo.write("| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n")
+        archivo.write(
+            "| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |\n"
+        )
 
         for detalle in detalles:
             estado    = "🟢 PASS" if detalle["resultado"] == "PASS" else "🔴 FAIL"
             pregunta  = detalle["pregunta"].replace("|", "\\|")
             validacion = detalle["validacion"].replace("|", "\\|")
+            respuesta_tabla = (
+                str(detalle["respuesta"])
+                .replace("|", "\\|")
+                .replace("\r\n", "<br>")
+                .replace("\n", "<br>")
+            )
 
             archivo.write(
                 f"| {detalle['num']} | {detalle['categoria']} | {pregunta} | "
+                f"{respuesta_tabla} | "
                 f"`{detalle['esperado']}` | `{detalle['obtenido']}` | "
                 f"{validacion} | {detalle['duracion']} | **{estado}** |\n"
             )
@@ -278,8 +289,23 @@ def escribir_reporte_md(exitosos: int, fallidos: int, detalles: list, interrumpi
             respuesta = str(detalle["respuesta"]).replace("\n", "\n> ")
             archivo.write(f"### Caso {detalle['num']}: {detalle['categoria']}\n\n")
             archivo.write(f"**Pregunta:** \"{detalle['pregunta']}\"\n\n")
+            archivo.write(f"**Acción obtenida:** `{detalle['obtenido']}`\n\n")
             archivo.write(f"**Respuesta obtenida:**\n> {respuesta}\n\n")
             archivo.write(f"**Validación:** {detalle['validacion']}\n\n")
+
+            citaciones = detalle.get("citaciones") or []
+            if citaciones:
+                archivo.write("**Citaciones devueltas:**\n\n")
+                for numero_cita, cita in enumerate(citaciones, start=1):
+                    fuente = str(cita.get("fuente") or "Fuente no indicada")
+                    pagina = cita.get("pagina")
+                    texto  = str(cita.get("texto") or "").strip().replace("\n", " ")
+                    ubicacion = f", página {pagina}" if pagina is not None else ""
+                    archivo.write(
+                        f"{numero_cita}. **{fuente}{ubicacion}:** {texto}\n"
+                    )
+                archivo.write("\n")
+
             archivo.write("---\n\n")
 
 
@@ -352,7 +378,11 @@ def ejecutar_pruebas(args: argparse.Namespace) -> None:
             grupo     = caso["grupo"]
 
             timeout_solicitud = timeout_rag if grupo == "rag" else timeout_triaje
-            endpoint          = "/api/chat" if grupo == "rag" else "/api/triaje"
+
+            # Todos los casos usan /api/chat. El endpoint /api/triaje solo devuelve
+            # una clasificación (por ejemplo, "Clasificación de triaje: SALUDO")
+            # y no la respuesta final que recibiría el usuario.
+            endpoint = "/api/chat"
             
             if "sesion" in caso:
                 thread_id = f"suite_test_memoria_{caso['sesion']}_{suite_timestamp}"
@@ -399,6 +429,15 @@ def ejecutar_pruebas(args: argparse.Namespace) -> None:
                     f"  Validación: {detalle_contenido}"
                 )
 
+            respuesta_agente = str(
+                respuesta_api.get("respuesta", respuesta_api.get("error", "N/A"))
+            )
+            print(f"  {AZUL}Respuesta del agente:{RESET} {respuesta_agente}")
+
+            citaciones_respuesta = respuesta_api.get("citaciones") or []
+            if citaciones_respuesta:
+                print(f"  {AZUL}Citaciones devueltas:{RESET} {len(citaciones_respuesta)}")
+
             detalles.append({
                 "num":       numero_original,
                 "categoria": categoria,
@@ -408,7 +447,8 @@ def ejecutar_pruebas(args: argparse.Namespace) -> None:
                 "resultado": "PASS" if correcto else "FAIL",
                 "validacion": detalle_contenido,
                 "duracion":  f"{duracion:.2f}s",
-                "respuesta": respuesta_api.get("respuesta", respuesta_api.get("error", "N/A")),
+                "respuesta": respuesta_agente,
+                "citaciones": citaciones_respuesta,
             })
 
             completados += 1
