@@ -1,260 +1,681 @@
-# Prototipo inicial del Agente de Políticas Alicorp
+# 🤖 Agente de Políticas Corporativas de Alicorp
 
-Este repositorio contiene un proyecto educativo para probar el uso de
-**LangChain**, **LangGraph** y **RAG** sobre documentos de políticas
-corporativas.
+Aplicación web con inteligencia artificial que responde consultas sobre las
+políticas corporativas de Alicorp. El sistema clasifica cada mensaje, busca
+información en documentos PDF mediante RAG, verifica la respuesta y muestra las
+fuentes utilizadas.
 
-> **Importante:** la rama `main` corresponde al prototipo inicial ejecutado
-> desde la terminal. La aplicación web con FastAPI, interfaz React y despliegue
-> en Render se encuentra en la rama
-> [`Api-Agente`](https://github.com/CORREAK18/AgenteIA_Alicorp_Politicas/tree/Api-Agente).
+Cuando una solicitud necesita una gestión real, el agente no envía el ticket
+automáticamente. Primero muestra un formulario para que el usuario revise y
+complete la información. El correo se envía únicamente después de confirmar el
+formulario.
 
-## Objetivo de esta rama
+## 🌐 Aplicación desplegada
 
-La rama `main` se creó para comprobar que era posible:
+La aplicación está desplegada en Render:
 
-- cargar archivos PDF con políticas corporativas;
-- dividir los documentos en fragmentos de texto;
-- generar embeddings y guardarlos en un índice FAISS;
-- clasificar la consulta mediante un triaje;
-- dirigir el flujo con LangGraph;
-- buscar información relevante con RAG;
-- generar una respuesta utilizando un modelo de lenguaje;
-- mostrar la respuesta y guardar un diagrama del grafo.
+**https://agente-alicorp.onrender.com**
 
-Esta rama sirve como prueba de concepto y como base del desarrollo posterior.
-No representa la versión final de la aplicación.
+> Si el servicio se encuentra inactivo, la primera carga puede tardar mientras
+> Render lo inicia nuevamente.
 
-## Funcionamiento general
+## 🌿 Ramas del repositorio
+
+El repositorio conserva el prototipo inicial y la versión web completa.
+
+| Rama | Contenido |
+| --- | --- |
+| `main` | Prototipo inicial ejecutado desde Python. No contiene API REST, frontend React ni README. |
+| `Api-Agente` | Versión completa y actual: FastAPI, React, LangGraph, RAG, memoria, verificación, tickets por correo, Docker y despliegue en Render. |
+
+El proyecto tiene dos ramas: `main` conserva el prototipo y `Api-Agente`
+contiene la aplicación web completa.
+
+> La rama utilizada para el desarrollo y despliegue es `Api-Agente`.
+
+## ✨ Funcionalidades principales
+
+- Chat web para consultar las políticas corporativas.
+- Clasificación de mensajes mediante un triaje con IA.
+- Memoria conversacional de corto plazo por sesión.
+- Búsqueda semántica sobre documentos PDF con FAISS.
+- Generación de respuestas mediante Cohere o Gemini.
+- Verificación de respuestas para reducir información no respaldada.
+- Citaciones con fragmento, archivo de origen y número de página.
+- Listado directo de todas las políticas disponibles.
+- Formulario para revisar y enviar solicitudes que requieren gestión.
+- Envío de tickets por correo mediante SMTP.
+- API REST documentada automáticamente con FastAPI.
+- Suite de 44 casos de prueba para triaje, RAG y memoria.
+
+## 🛠️ Tecnologías
+
+| Capa | Tecnologías |
+| --- | --- |
+| Frontend | Node.js 22.12.0, React 19, Vite 7, Framer Motion, Lucide React y React Markdown |
+| API | Python 3.13.2 en desarrollo local, FastAPI, Uvicorn y Pydantic |
+| Orquestación | LangGraph y LangChain |
+| Modelos de IA | Cohere o Google Gemini |
+| Búsqueda RAG | FAISS, embeddings y recuperación semántica |
+| Documentos | PyMuPDF, Transformers y tokenizador de Hugging Face |
+| Tickets | SMTP y correo electrónico |
+| Despliegue | Docker y Render |
+
+## 🏛️ Arquitectura del sistema
+
+React contiene la interfaz gráfica y FastAPI sirve tanto la API como el
+frontend compilado. LangGraph se utiliza para decidir cómo responder una
+consulta. El formulario de tickets y el envío del correo funcionan fuera del
+grafo porque no necesitan una decisión adicional de la IA.
+
+### Flujo de consultas con IA
 
 ```mermaid
 flowchart TD
-    A[Pregunta definida en Main.py] --> B[Triaje]
-    B -->|CONSULTAR_RAG| C[Buscar en FAISS y responder]
-    B -->|PEDIR_MAS_INFORMACION| D[Pedir más información]
-    B -->|ABRIR_TICKET| E[Simular solicitud de ticket]
-    C -->|Información encontrada| F[Mostrar respuesta]
-    C -->|Sin información| D
-    C -->|Requiere gestión| E
-    D --> F
-    E --> F
+    U[Usuario] --> UI[Interfaz React]
+    UI -->|POST /api/chat| API[FastAPI - Main.py]
+    API --> PRE[Triaje inicial y memoria]
+    PRE --> G[LangGraph - grafo.py]
+    G --> T[Triaje]
+
+    T -->|CONSULTAR_RAG| F[FAISS: 12 candidatos]
+    F --> R[RAG: selecciona hasta 4 fragmentos]
+    R --> V[Verificador RAG]
+
+    T -->|SALUDO| S[Saludo]
+    T -->|FUERA_DE_AMBITO| O[Fuera de ámbito]
+    T -->|PEDIR_MAS_INFORMACION| P[Pedir información]
+    T -->|LISTAR_POLITICAS| L[Listar políticas]
+    T -->|ABRIR_TICKET| AT[Indicar que requiere ticket]
+
+    V -->|RESPUESTA_OK| OK[Respuesta y citaciones]
+    V -->|NO_SE| NS[Sin información]
+    V -->|PEDIR_INFO| P
+    V -->|ABRIR_TICKET| AT
+
+    S --> FIN[Respuesta final]
+    O --> FIN
+    P --> FIN
+    L --> FIN
+    AT --> FIN
+    OK --> FIN
+    NS --> FIN
+
+    FIN --> API
+    API --> UI
 ```
 
-El flujo comienza en `Main.py`. El triaje analiza la pregunta y decide si debe
-consultar los documentos, pedir más información o indicar que se necesita un
-ticket.
+El diagrama generado directamente por LangGraph se encuentra en
+[`grafo_agente.png`](grafo_agente.png).
 
-En este prototipo, la opción de ticket **solo devuelve un mensaje de texto**.
-No crea un ticket real ni envía correos electrónicos. Esa funcionalidad se
-implementó posteriormente en la rama `Api-Agente`.
+### Flujo del formulario de tickets
 
-## Tecnologías utilizadas
+```mermaid
+flowchart TD
+    G[LangGraph] -->|accion_final: ABRIR_TICKET| API[FastAPI]
+    API --> UI[Chat en React]
+    UI --> B[Botón Completar ticket]
+    B --> FORM[Formulario TicketPage.jsx]
+    FORM -->|POST /api/tickets| ENDPOINT[Endpoint de tickets]
+    ENDPOINT --> SERVICE[tickets.py]
+    SERVICE --> SMTP[Servidor SMTP]
+    SMTP --> MAIL[Buzón corporativo]
+    MAIL -. Responder .-> USERMAIL[Correo escrito en el formulario]
+```
 
-| Tecnología | Uso en el prototipo |
-|---|---|
-| Python | Lenguaje principal |
-| LangChain | Carga de documentos, cadenas y recuperación RAG |
-| LangGraph | Control del flujo y sus decisiones |
-| FAISS | Almacenamiento y búsqueda de vectores |
-| Gemini u Ollama | Modelo de lenguaje y embeddings |
-| PyMuPDF | Lectura de los documentos PDF |
+En este flujo:
 
-## Estructura principal
+1. LangGraph solo decide que la solicitud necesita un ticket.
+2. FastAPI devuelve `accion_final: ABRIR_TICKET` al frontend.
+3. React muestra el botón **Completar ticket**.
+4. El usuario revisa la pregunta y completa sus datos.
+5. El formulario llama a `POST /api/tickets`.
+6. `tickets.py` envía el mensaje desde la cuenta técnica hacia el buzón
+   corporativo.
+7. El correo del usuario se coloca como `Reply-To` para que el área responsable
+   pueda responderle.
+
+Por lo tanto, el formulario, el endpoint de tickets y SMTP no forman parte del
+grafo de LangGraph.
+
+## 🔎 Funcionamiento del RAG
+
+1. El frontend envía la pregunta y el identificador de conversación.
+2. El triaje clasifica la intención del mensaje.
+3. Si la pregunta depende de mensajes anteriores, la memoria la convierte en
+   una consulta autónoma y se vuelve a clasificar.
+4. El grafo selecciona la ruta correspondiente.
+5. Para una consulta documental, FAISS recupera 12 fragmentos candidatos.
+6. `busqueda_rag.py` reordena los candidatos y conserva hasta 4 fragmentos.
+7. El LLM genera una respuesta utilizando el contexto recuperado.
+8. El verificador comprueba que la respuesta atienda la pregunta y tenga
+   respaldo documental.
+9. FastAPI devuelve la respuesta, la acción final, el triaje y las citaciones.
+
+Las rutas como saludo, listado de políticas o solicitud de más información no
+necesitan consultar FAISS.
+
+## 📂 Estructura del proyecto
 
 ```text
-AgenteIA_Alicorp_Politicas/
-├── Documentos/         # Archivos PDF usados por el agente
-├── Main.py             # Punto de entrada y pregunta de prueba
-├── config.py           # Lectura de variables del archivo .env
-├── providers.py        # Configuración de Gemini u Ollama
-├── documentos.py       # Carga y división de los documentos
-├── triaje.py           # Clasificación inicial de la consulta
-├── vectorstore.py      # Índice FAISS y retriever
-├── busqueda_rag.py     # Generación de la respuesta con RAG
-├── grafo.py            # Flujo creado con LangGraph
-├── grafo_agente.png    # Diagrama generado por el prototipo
-├── rag.py              # Versión experimental anterior del flujo RAG
-└── requirements.txt    # Dependencias de Python
+Backend/
+├── Main.py
+├── config.py
+├── providers.py
+├── triaje.py
+├── grafo.py
+├── busqueda_rag.py
+├── memoria.py
+├── documentos.py
+├── vectorstore.py
+├── tickets.py
+├── test_agente_ligero.py
+├── reporte_pruebas.md
+├── requirements.txt
+├── Dockerfile
+├── .env.example
+├── Documentos/
+├── faiss_indexv2/
+└── frontend/
+    ├── src/
+    │   ├── App.jsx
+    │   ├── TicketPage.jsx
+    │   ├── main.jsx
+    │   └── styles.css
+    ├── public/
+    ├── package.json
+    ├── package-lock.json
+    └── vite.config.js
 ```
 
-Las carpetas `.vscode` y `__pycache__` no forman parte de la lógica del agente:
-la primera guarda preferencias locales de Visual Studio Code y la segunda
-contiene archivos temporales generados por Python.
+`frontend/dist/` es una carpeta generada por `npm run build`. FastAPI sirve su
+contenido cuando la aplicación se ejecuta con `python Main.py`.
 
-## Requisitos para Windows
+## 📄 Archivos importantes
 
-- Git.
-- Python 3.13.2, que fue la versión utilizada durante el desarrollo.
-- Una clave de Gemini o una instalación local de Ollama.
+| Archivo o carpeta | Función |
+| --- | --- |
+| `Main.py` | Inicializa los componentes, define los endpoints y sirve el frontend. |
+| `config.py` | Lee la configuración de IA, RAG, documentos y correo. |
+| `providers.py` | Construye el LLM y los embeddings de Cohere o Gemini. |
+| `triaje.py` | Clasifica la intención, urgencia, datos faltantes y uso del historial. |
+| `grafo.py` | Define los nodos, decisiones y rutas de LangGraph. |
+| `busqueda_rag.py` | Recupera fragmentos, genera una respuesta y la verifica. |
+| `memoria.py` | Guarda el historial corto y condensa preguntas dependientes. |
+| `documentos.py` | Lee los PDF y los divide en fragmentos cuando se reconstruye el índice. |
+| `vectorstore.py` | Carga, valida o reconstruye el índice FAISS. |
+| `tickets.py` | Valida el formulario, genera un código de referencia y envía el correo. |
+| `Documentos/` | Contiene las políticas corporativas en PDF. |
+| `faiss_indexv2/` | Contiene el índice vectorial y su manifiesto de validación. |
+| `frontend/src/App.jsx` | Contiene el chat y consume `/api/chat`. |
+| `frontend/src/TicketPage.jsx` | Contiene el formulario y consume `/api/tickets`. |
+| `frontend/src/styles.css` | Define los estilos del chat y del formulario. |
+| `test_agente_ligero.py` | Ejecuta los 44 casos de prueba. |
+| `reporte_pruebas.md` | Guarda el resultado de las pruebas ejecutadas. |
+| `Dockerfile` | Compila React y prepara FastAPI para producción. |
+| `.env.example` | Plantilla sin credenciales para crear el archivo privado `.env`. |
+| `INSTRUCCIONES_TICKETS.md` *(histórico)* | Documentó inicialmente la instalación y el funcionamiento de los tickets por correo. |
 
-Para ejecutar esta rama no se necesita Node.js, Docker, FastAPI ni React.
+`INSTRUCCIONES_TICKETS.md` fue agregado en el commit `cb115d5`. Posteriormente,
+su contenido se integró en este README y el archivo fue retirado en el commit
+`c1018e3`. Aunque ya no aparece en la estructura actual, permanece disponible
+en el historial de Git.
 
-## Instalación paso a paso en Windows
+## ⚙️ Requisitos previos
 
-### 1. Descargar solamente la rama `main`
+La forma normal de ejecutar el proyecto en Windows es con `python Main.py`.
+Para eso se necesita:
 
-Abrir PowerShell en la carpeta donde se guardará el proyecto y ejecutar:
+- Windows 10 u 11.
+- Python 3.13.2.
+- Una clave válida de Cohere o Gemini.
+- Git solamente si se clonará el repositorio. También puede descargarse como
+  ZIP.
+- Una cuenta de correo con SMTP solamente si se probará el formulario de
+  tickets.
+
+`frontend/dist` ya está incluido en la rama `Api-Agente`. Por eso **Node.js no
+es necesario para abrir la aplicación existente**. Node.js 22.12.0 y npm solo
+son necesarios si se modificará y volverá a compilar el frontend.
+
+Docker tampoco es obligatorio para trabajar localmente. El `Dockerfile` se
+utiliza principalmente para el despliegue en Render y queda como una alternativa
+opcional al final del README.
+
+## 🔐 Configuración privada
+
+La aplicación utiliza variables privadas para el proveedor de IA y el envío de
+correos. Los valores reales deben guardarse únicamente en el archivo `.env`
+local y en **Render > Environment**.
+
+El repositorio incluye `.env.example`, que contiene todos los nombres de las
+variables sin incluir claves ni contraseñas. Cada usuario debe copiar esa
+plantilla con el nombre `.env` y completar sus propias credenciales.
+
+Variables principales de IA:
+
+- `LLM_PROVIDER`
+- `COHERE_API_KEY` o `GEMINI_API_KEY`
+- `EMBEDDINGS_PROVIDER`
+- Modelos y tiempos de espera del proveedor seleccionado
+
+Variables principales de correo:
+
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_USER`
+- `SMTP_APP_PASSWORD`
+- `TICKET_DESTINO`
+- `SMTP_TIMEOUT_SECONDS`
+
+`SMTP_USER` es la cuenta técnica que envía el mensaje. El correo escrito en el
+formulario identifica al solicitante y se utiliza como `Reply-To`.
+
+> No se deben subir contraseñas, claves de API ni el archivo `.env` a GitHub.
+
+## 📥 Instalación en Windows
+
+Esta es la instalación recomendada para un usuario que descarga el proyecto por
+primera vez. No se necesita Docker y, mientras no se modifique el frontend,
+tampoco se necesita Node.js.
+
+### Paso 1. Instalar y comprobar Python
+
+Instalar [Python 3.13.2 para Windows](https://www.python.org/downloads/release/python-3132/).
+Durante la instalación se debe
+marcar **Add Python to PATH**.
+
+Después, cerrar la ventana de PowerShell, abrir una nueva y ejecutar:
 
 ```powershell
-git clone --branch main --single-branch https://github.com/CORREAK18/AgenteIA_Alicorp_Politicas.git
-cd AgenteIA_Alicorp_Politicas
+python --version
 ```
 
-Si el repositorio ya está descargado, entrar a su carpeta y seleccionar la
-rama:
-
-```powershell
-git switch main
-```
-
-### 2. Comprobar Python
-
-```powershell
-python -V
-```
-
-El resultado esperado en el equipo usado para desarrollar el proyecto es:
+Debe aparecer una versión de Python 3.13, por ejemplo:
 
 ```text
 Python 3.13.2
 ```
 
-### 3. Crear y activar el entorno virtual
+Si aparece `python no se reconoce`, Python no se agregó al `PATH`. Se debe
+reabrir el instalador, activar **Add Python to PATH** y abrir PowerShell
+nuevamente.
+
+### Paso 2. Descargar la rama correcta
+
+La aplicación completa está en `Api-Agente`; la rama `main` solo contiene el
+prototipo.
+
+Con Git:
+
+```powershell
+git clone --branch Api-Agente --single-branch https://github.com/CORREAK18/AgenteIA_Alicorp_Politicas.git
+cd AgenteIA_Alicorp_Politicas
+git branch --show-current
+```
+
+El último comando debe mostrar `Api-Agente`.
+
+Sin Git:
+
+1. Abrir la
+   [rama Api-Agente en GitHub](https://github.com/CORREAK18/AgenteIA_Alicorp_Politicas/tree/Api-Agente).
+2. Presionar **Code** y después **Download ZIP**.
+3. Descomprimir el ZIP.
+4. Abrir la carpeta `AgenteIA_Alicorp_Politicas-Api-Agente`.
+5. Hacer clic derecho dentro de la carpeta y seleccionar **Abrir en Terminal**.
+
+### Paso 3. Verificar la carpeta del proyecto
+
+En PowerShell ejecutar:
+
+```powershell
+Get-ChildItem Main.py, requirements.txt, .env.example
+```
+
+Deben aparecer los tres archivos. Si no aparecen, la terminal está en una
+carpeta equivocada.
+
+### Paso 4. Crear y activar el entorno virtual
+
+Crear el entorno:
 
 ```powershell
 python -m venv .venv
+```
+
+Permitir la activación solamente durante la terminal actual y activarlo:
+
+```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 .\.venv\Scripts\Activate.ps1
 ```
 
-Cuando el entorno esté activo, PowerShell mostrará `(.venv)` al inicio de la
+Cuando se activa correctamente, PowerShell muestra `(.venv)` al inicio de la
 línea.
 
-### 4. Instalar las dependencias
+Si el entorno ya existía, no se vuelve a crear; solamente se ejecutan los dos
+comandos de activación.
+
+### Paso 5. Instalar las librerías de Python
+
+Con `(.venv)` visible en PowerShell:
 
 ```powershell
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-### 5. Crear el archivo `.env`
+Este comando instala FastAPI, Uvicorn, LangChain, LangGraph, FAISS, Cohere,
+Gemini, PyMuPDF y las demás dependencias del backend. Solo es necesario
+repetirlo si cambia `requirements.txt` o se crea otro entorno virtual.
 
-El archivo `.env` contiene la configuración privada y no se publica en GitHub.
-Debe crearse manualmente en la raíz del proyecto, al mismo nivel que `Main.py`:
+### Paso 6. Crear el archivo `.env`
+
+Copiar la plantilla incluida en el repositorio:
 
 ```powershell
+Copy-Item .env.example .env
 notepad .env
 ```
 
-#### Opción A: usar Gemini
-
-Pegar este contenido y reemplazar el valor de la clave:
+Para utilizar Cohere, completar como mínimo:
 
 ```env
-LLM_PROVIDER=gemini
-EMBEDDINGS_PROVIDER=gemini
-GEMINI_API_KEY=TU_CLAVE_DE_GEMINI
-
-PDF_DIR=./Documentos
-FAISS_INDEX_DIR=./faiss_index
-TAMANO_LOTE_EMBEDDINGS=20
-PAUSA_SEGUNDOS_EMBEDDINGS=15
-MOSTRAR_MULTIQUERIES=true
+LLM_PROVIDER=cohere
+EMBEDDINGS_PROVIDER=cohere
+COHERE_API_KEY=COLOCAR_AQUI_LA_CLAVE_PERSONAL
+COHERE_CHAT_MODEL=command-a-03-2025
+COHERE_EMBEDDING_MODEL=embed-v4.0
 ```
 
-#### Opción B: usar Ollama localmente
-
-Ollama debe estar instalado y sus modelos deben estar disponibles antes de
-ejecutar el proyecto. Luego se puede usar una configuración como esta:
+Para enviar tickets también se deben completar:
 
 ```env
-LLM_PROVIDER=ollama
-EMBEDDINGS_PROVIDER=ollama
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_LLM_MODEL=gemma3:4b
-OLLAMA_EMBEDDING_MODEL=bge-m3
-
-PDF_DIR=./Documentos
-FAISS_INDEX_DIR=./faiss_index
-TAMANO_LOTE_EMBEDDINGS=20
-PAUSA_SEGUNDOS_EMBEDDINGS=15
-MOSTRAR_MULTIQUERIES=true
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=correo_tecnico@gmail.com
+SMTP_APP_PASSWORD=CONTRASENA_DE_APLICACION
+TICKET_DESTINO=correo_que_recibe_los_tickets@gmail.com
+SMTP_TIMEOUT_SECONDS=30
 ```
 
-No se deben combinar las dos opciones. Tampoco se debe subir el archivo `.env`
-ni publicar sus claves.
+Las variables SMTP pueden quedar vacías si solo se probará el chat. El correo
+escrito por el usuario en el formulario no reemplaza `SMTP_USER`: se usa como
+`Reply-To` para que el área responsable pueda responderle.
 
-### 6. Ejecutar el prototipo
+El archivo debe llamarse exactamente `.env`, no `.env.txt`. Se comprueba con:
+
+```powershell
+Get-ChildItem -Force .env*
+```
+
+### Paso 7. Ejecutar toda la aplicación
+
+Con `(.venv)` visible y desde la carpeta que contiene `Main.py`:
 
 ```powershell
 python Main.py
 ```
 
-La primera ejecución puede tardar porque el programa debe leer los PDF,
-generar embeddings y crear el índice FAISS. Las siguientes ejecuciones pueden
-reutilizar el índice guardado.
+No se necesita abrir otra terminal ni ejecutar React por separado. `Main.py`:
 
-Al finalizar, la terminal mostrará la pregunta de prueba y la respuesta del
-agente. También se intentará actualizar el archivo `grafo_agente.png`.
+1. Inicia FastAPI.
+2. Carga el LLM, los embeddings y el índice FAISS.
+3. Sirve el frontend ya compilado desde `frontend/dist`.
+4. Expone el chat y los endpoints desde el mismo puerto.
 
-## Probar otra pregunta
+La aplicación está lista cuando aparece:
 
-Esta versión no tiene una interfaz para escribir preguntas. La consulta de
-prueba está definida al final de `Main.py`:
-
-```python
-pregunta = "Cuales son las politicas de sanciones economicas?"
+```text
+Application startup complete.
+Uvicorn running on http://0.0.0.0:8000
 ```
 
-Para probar otra consulta:
+Abrir en el navegador:
 
-1. abrir `Main.py`;
-2. cambiar el texto de la variable `pregunta`;
-3. guardar el archivo;
-4. ejecutar nuevamente `python Main.py`.
+- Aplicación completa: `http://localhost:8000`
+- Estado del servicio: `http://localhost:8000/health`
+- Documentación Swagger: `http://localhost:8000/docs`
+
+El primer arranque puede tardar mientras se cargan los componentes. Para
+detener la aplicación se presiona `Ctrl + C` en PowerShell.
+
+### Errores frecuentes en Windows
+
+| Error | Solución |
+| --- | --- |
+| `python no se reconoce` | Instalar Python marcando **Add Python to PATH** y abrir otra ventana de PowerShell. |
+| `running scripts is disabled on this system` | Ejecutar `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned` y volver a activar `.venv`. |
+| `No module named ...` | Activar `.venv` y ejecutar `python -m pip install -r requirements.txt`. |
+| `Falta COHERE_API_KEY` o `Falta GEMINI_API_KEY` | Revisar que `.env` tenga la clave del proveedor seleccionado. |
+| La página muestra que el frontend no está compilado | Comprobar que existe `frontend/dist`. Si fue eliminado, seguir la sección de desarrollo del frontend para reconstruirlo. |
+| El puerto 8000 está ocupado | Cerrar el otro servidor o cambiar `PORT=8001` en `.env` y abrir `http://localhost:8001`. |
+| Error SMTP `535` | Utilizar una contraseña de aplicación de Gmail, no la contraseña normal. |
+
+## 💻 Desarrollo del frontend
+
+Esta sección solo es necesaria si se modificará React. Para ejecutar la versión
+actual basta con `python Main.py`.
+
+1. Instalar [Node.js 22.12.0](https://nodejs.org/en/blog/release/v22.12.0).
+2. Abrir una terminal nueva y comprobarlo:
+
+   ```powershell
+   node --version
+   npm --version
+   ```
+
+3. Instalar las dependencias del frontend y generar `frontend/dist`:
+
+   ```powershell
+   cd frontend
+   npm install
+   npm run build
+   cd ..
+   ```
+
+Para trabajar con recarga automática, dejar `python Main.py` ejecutándose en
+una primera terminal. En una segunda terminal ejecutar:
+
+```powershell
+cd frontend
+npm run dev
+```
+
+Mientras `npm run dev` esté activo, la versión de desarrollo se abre en
+`http://localhost:5173`. Vite redirige `/api` y `/health` hacia FastAPI, que
+continúa ejecutándose en el puerto `8000`.
+
+Este modo se utiliza solamente mientras se modifica el frontend. En la
+ejecución normal, FastAPI sirve la interfaz compilada directamente en
+`http://localhost:8000`; no es necesario abrir el puerto `5173`.
+
+Después de modificar el frontend, ejecuta nuevamente `npm run build` si deseas
+probarlo directamente desde `python Main.py`.
+
+## 🚀 Uso de la aplicación
+
+### Consulta documental
 
 Ejemplo:
 
-```python
-pregunta = "¿Qué indica la política sobre regalos y atenciones?"
+> ¿Qué establece la política corporativa sobre los regalos de proveedores?
+
+El agente buscará información en FAISS, verificará la respuesta y mostrará las
+fuentes consultadas.
+
+### Solicitud de ticket
+
+Ejemplo:
+
+> Registra una denuncia porque un proveedor me ofreció dinero. Abre un ticket.
+
+El agente devolverá `ABRIR_TICKET`. La interfaz mostrará el formulario, pero el
+correo no se enviará hasta que el usuario presione **Enviar ticket**.
+
+El código mostrado después del envío es un código de referencia incluido en el
+correo. No permite consultar estados porque el proyecto no utiliza una base de
+datos de tickets.
+
+## 🔌 Endpoints principales
+
+| Método | Ruta | Descripción |
+| --- | --- | --- |
+| `GET` | `/health` | Indica si el agente terminó de inicializarse. |
+| `GET` | `/api/politicas` | Lista las políticas disponibles. |
+| `POST` | `/api/triaje` | Clasifica una pregunta sin ejecutar el RAG. |
+| `POST` | `/api/chat` | Ejecuta memoria, LangGraph, RAG y verificación. |
+| `POST` | `/api/tickets` | Valida el formulario y envía el ticket por correo. |
+| `DELETE` | `/api/chat/historial/{thread_id}` | Elimina el historial de una sesión. |
+
+Acciones finales posibles:
+
+- `SALUDO`
+- `FUERA_DE_AMBITO`
+- `PEDIR_INFO`
+- `LISTAR_POLITICAS`
+- `AUTO_RESOLVER`
+- `SIN_INFORMACION`
+- `ABRIR_TICKET`
+
+## 🧪 Pruebas automatizadas
+
+La suite contiene 44 casos de triaje, RAG y memoria. Primero debe iniciarse el
+backend:
+
+```bash
+python Main.py
 ```
 
-## Resultado esperado
+En una segunda terminal:
 
-Durante la ejecución se mostrarán mensajes relacionados con:
+```bash
+python test_agente_ligero.py
+```
 
-1. el proveedor del modelo y los embeddings;
-2. la carga de los documentos PDF;
-3. la creación o carga del índice FAISS;
-4. la decisión tomada por el triaje;
-5. la ruta seguida dentro del grafo;
-6. la respuesta final.
+Comandos útiles:
 
-## Alcance y limitaciones
+```bash
+# Solo triaje
+python test_agente_ligero.py --grupo triaje
 
-La rama `main`:
+# Solo RAG y memoria
+python test_agente_ligero.py --grupo rag
 
-- funciona desde la terminal;
-- ejecuta una sola pregunta definida en el código;
-- no incluye una API REST;
-- no incluye frontend web;
-- no mantiene una conversación con memoria;
-- no tiene un verificador adicional de respuestas RAG;
-- no crea ni envía tickets reales;
-- no está preparada para desplegarse directamente en Render;
-- no necesita Docker para ejecutarse localmente.
+# Casos específicos
+python test_agente_ligero.py --desde 1 --hasta 10
 
-Estas características sí fueron ampliadas en la rama
-[`Api-Agente`](https://github.com/CORREAK18/AgenteIA_Alicorp_Politicas/tree/Api-Agente).
+# Cambiar el perfil de pausas
+python test_agente_ligero.py --modo normal
+python test_agente_ligero.py --modo rapido
+```
 
-## Seguridad
+Los modos disponibles son `ligero`, `normal` y `rapido`. El resultado se guarda
+en `reporte_pruebas.md` después de cada caso completado.
 
-- No publicar el archivo `.env`.
-- No escribir claves de API directamente en los archivos `.py`.
-- Si una clave se publica por error, debe revocarse y reemplazarse.
+### Resultado documentado
 
-## Estado del proyecto
+El reporte disponible corresponde a una ejecución parcial de cuatro casos. No representa todavía la ejecución completa de los 44 casos definidos.
 
-Este código se conserva como evidencia del primer prototipo y del aprendizaje
-inicial con LangChain, LangGraph, FAISS y RAG. El desarrollo funcional continúa
-en la rama `Api-Agente`.
+| Métrica | Resultado |
+| --- | ---: |
+| Casos ejecutados | 4 |
+| Casos aprobados | 4 |
+| Casos fallidos | 0 |
+| Tasa de éxito de la ejecución | **100 %** |
+
+| Caso | Categoría | Acción esperada | Acción obtenida | Estado |
+| ---: | --- | --- | --- | --- |
+| 38 | Triaje: abrir ticket | `ABRIR_TICKET` | `ABRIR_TICKET` | PASS |
+| 39 | Triaje: abrir ticket | `ABRIR_TICKET` | `ABRIR_TICKET` | PASS |
+| 40 | Triaje: abrir ticket | `ABRIR_TICKET` | `ABRIR_TICKET` | PASS |
+| 41 | Memoria y RAG sobre regalos | `AUTO_RESOLVER` | `AUTO_RESOLVER` | PASS |
+
+El caso 41 produjo una respuesta útil respaldada por cuatro citaciones. El detalle de las preguntas, respuestas, tiempos y validaciones se encuentra en [reporte_pruebas.md](reporte_pruebas.md).
+
+## 🐳 Docker en Windows (opcional)
+
+**Docker no es necesario para ejecutar el proyecto normalmente.** Si el usuario
+ya instaló Python y siguió la sección anterior, solamente debe usar:
+
+```powershell
+python Main.py
+```
+
+El `Dockerfile` se conserva porque Render lo utiliza para construir y desplegar
+la aplicación. También permite ejecutar el proyecto en un contenedor, pero es
+una alternativa.
+
+Si un usuario decide utilizar Docker en Windows:
+
+1. Instalar [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/)
+   siguiendo su instalador.
+2. Abrir Docker Desktop y esperar a que termine de iniciar.
+3. Comprobarlo en PowerShell:
+
+   ```powershell
+   docker version
+   ```
+
+4. Crear y completar `.env` como se explicó anteriormente.
+5. Desde la carpeta donde está `Dockerfile`, construir la imagen:
+
+   ```powershell
+   docker build -t agente-alicorp .
+   ```
+
+6. Cuando la construcción termine, iniciar el contenedor:
+
+   ```powershell
+   docker run --rm --name agente-alicorp --env-file .env -p 8000:8000 agente-alicorp
+   ```
+
+7. Abrir `http://localhost:8000`.
+8. Para detenerlo, presionar `Ctrl + C`.
+
+Dentro del contenedor, el `Dockerfile` ejecuta automáticamente `python Main.py`.
+Por eso no se debe ejecutar ese comando por separado cuando se utiliza Docker.
+
+Errores básicos:
+
+| Error | Solución |
+| --- | --- |
+| `docker no se reconoce` | Docker Desktop no está instalado o falta abrir una terminal nueva. |
+| `Cannot connect to the Docker daemon` | Abrir Docker Desktop y esperar a que inicie. |
+| No encuentra `.env` | Crear `.env` desde `.env.example` en la raíz del proyecto. |
+| El puerto 8000 está ocupado | Usar `-p 8080:8000` y abrir `http://localhost:8080`. |
+
+## ☁️ Despliegue en Render
+
+La rama `Api-Agente` está preparada para desplegarse como un servicio Docker.
+Render instala las dependencias, compila React y ejecuta `python Main.py`.
+
+La aplicación utiliza la variable `PORT` proporcionada por Render y sirve el
+frontend y la API desde el mismo dominio.
+
+Comprobación del servicio:
+
+**https://agente-alicorp.onrender.com/health**
+
+> Render bloquea los puertos SMTP `25`, `465` y `587` en los servicios web
+> gratuitos. En ese tipo de instancia el chat puede funcionar, pero el envío
+> por Gmail SMTP no. Para habilitarlo en producción se necesita una instancia
+> compatible o un servicio de correo mediante API HTTPS. Consulta las
+> [limitaciones oficiales del plan gratuito](https://render.com/docs/free#outbound-traffic).
+
+## ⚠️ Consideraciones actuales
+
+- La memoria conversacional se guarda en RAM y se pierde al reiniciar el
+  servicio.
+- El índice FAISS se reutiliza mientras coincidan los PDF y el modelo de
+  embeddings.
+- Si cambian los documentos o embeddings, el índice se reconstruye.
+- Las pruebas realizan llamadas reales al proveedor de IA y pueden consumir
+  cuota.
+- Los tickets se envían por correo, pero no se guardan en una base de datos.
+- El código del ticket es una referencia para buscar el correo, no un sistema
+  de seguimiento de estados.
+- No existe autenticación de usuarios ni una mesa de ayuda integrada.
+- No se deben ejecutar varias suites intensivas al mismo tiempo contra el mismo
+  servicio.
