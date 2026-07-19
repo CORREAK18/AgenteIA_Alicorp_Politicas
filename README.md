@@ -173,6 +173,7 @@ Backend/
 ├── reporte_pruebas.md
 ├── requirements.txt
 ├── Dockerfile
+├── .env.example
 ├── Documentos/
 ├── faiss_indexv2/
 └── frontend/
@@ -212,6 +213,7 @@ contenido cuando la aplicación se ejecuta con `python Main.py`.
 | `test_agente_ligero.py` | Ejecuta los 44 casos de prueba. |
 | `reporte_pruebas.md` | Guarda el resultado de las pruebas ejecutadas. |
 | `Dockerfile` | Compila React y prepara FastAPI para producción. |
+| `.env.example` | Plantilla sin credenciales para crear el archivo privado `.env`. |
 | `INSTRUCCIONES_TICKETS.md` *(histórico)* | Documentó inicialmente la instalación y el funcionamiento de los tickets por correo. |
 
 `INSTRUCCIONES_TICKETS.md` fue agregado en el commit `cb115d5`. Posteriormente,
@@ -221,17 +223,34 @@ en el historial de Git.
 
 ## ⚙️ Requisitos previos
 
+La forma normal de ejecutar el proyecto en Windows es con `python Main.py`.
+Para eso se necesita:
+
+- Windows 10 u 11.
 - Python 3.13.2.
-- Node.js 22.12.0 y npm.
-- Credenciales válidas para Cohere o Gemini.
-- Una cuenta de correo técnico con acceso SMTP para enviar tickets.
-- Git, si el proyecto se clonará desde GitHub.
+- Una clave válida de Cohere o Gemini.
+- Git solamente si se clonará el repositorio. También puede descargarse como
+  ZIP.
+- Una cuenta de correo con SMTP solamente si se probará el formulario de
+  tickets.
+
+`frontend/dist` ya está incluido en la rama `Api-Agente`. Por eso **Node.js no
+es necesario para abrir la aplicación existente**. Node.js 22.12.0 y npm solo
+son necesarios si se modificará y volverá a compilar el frontend.
+
+Docker tampoco es obligatorio para trabajar localmente. El `Dockerfile` se
+utiliza principalmente para el despliegue en Render y queda como una alternativa
+opcional al final del README.
 
 ## 🔐 Configuración privada
 
 La aplicación utiliza variables privadas para el proveedor de IA y el envío de
 correos. Los valores reales deben guardarse únicamente en el archivo `.env`
 local y en **Render > Environment**.
+
+El repositorio incluye `.env.example`, que contiene todos los nombres de las
+variables sin incluir claves ni contraseñas. Cada usuario debe copiar esa
+plantilla con el nombre `.env` y completar sus propias credenciales.
 
 Variables principales de IA:
 
@@ -254,76 +273,212 @@ formulario identifica al solicitante y se utiliza como `Reply-To`.
 
 > No se deben subir contraseñas, claves de API ni el archivo `.env` a GitHub.
 
-## 📥 Instalación local
+## 📥 Instalación en Windows
 
-### 1. Obtener la rama completa
+Esta es la instalación recomendada para un usuario que descarga el proyecto por
+primera vez. No se necesita Docker y, mientras no se modifique el frontend,
+tampoco se necesita Node.js.
 
-```bash
-git clone --branch Api-Agente https://github.com/CORREAK18/AgenteIA_Alicorp_Politicas.git
+### Paso 1. Instalar y comprobar Python
+
+Instalar [Python 3.13.2 para Windows](https://www.python.org/downloads/release/python-3132/).
+Durante la instalación se debe
+marcar **Add Python to PATH**.
+
+Después, cerrar la ventana de PowerShell, abrir una nueva y ejecutar:
+
+```powershell
+python --version
+```
+
+Debe aparecer una versión de Python 3.13, por ejemplo:
+
+```text
+Python 3.13.2
+```
+
+Si aparece `python no se reconoce`, Python no se agregó al `PATH`. Se debe
+reabrir el instalador, activar **Add Python to PATH** y abrir PowerShell
+nuevamente.
+
+### Paso 2. Descargar la rama correcta
+
+La aplicación completa está en `Api-Agente`; la rama `main` solo contiene el
+prototipo.
+
+Con Git:
+
+```powershell
+git clone --branch Api-Agente --single-branch https://github.com/CORREAK18/AgenteIA_Alicorp_Politicas.git
 cd AgenteIA_Alicorp_Politicas
+git branch --show-current
 ```
 
-Si el repositorio ya está clonado:
+El último comando debe mostrar `Api-Agente`.
 
-```bash
-git switch Api-Agente
+Sin Git:
+
+1. Abrir la
+   [rama Api-Agente en GitHub](https://github.com/CORREAK18/AgenteIA_Alicorp_Politicas/tree/Api-Agente).
+2. Presionar **Code** y después **Download ZIP**.
+3. Descomprimir el ZIP.
+4. Abrir la carpeta `AgenteIA_Alicorp_Politicas-Api-Agente`.
+5. Hacer clic derecho dentro de la carpeta y seleccionar **Abrir en Terminal**.
+
+### Paso 3. Verificar la carpeta del proyecto
+
+En PowerShell ejecutar:
+
+```powershell
+Get-ChildItem Main.py, requirements.txt, .env.example
 ```
 
-### 2. Preparar Python
+Deben aparecer los tres archivos. Si no aparecen, la terminal está en una
+carpeta equivocada.
 
-```bash
+### Paso 4. Crear y activar el entorno virtual
+
+Crear el entorno:
+
+```powershell
 python -m venv .venv
 ```
 
-En Windows PowerShell:
+Permitir la activación solamente durante la terminal actual y activarlo:
 
 ```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 .\.venv\Scripts\Activate.ps1
+```
+
+Cuando se activa correctamente, PowerShell muestra `(.venv)` al inicio de la
+línea.
+
+Si el entorno ya existía, no se vuelve a crear; solamente se ejecutan los dos
+comandos de activación.
+
+### Paso 5. Instalar las librerías de Python
+
+Con `(.venv)` visible en PowerShell:
+
+```powershell
 python -m pip install --upgrade pip
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
-En Linux o macOS:
+Este comando instala FastAPI, Uvicorn, LangChain, LangGraph, FAISS, Cohere,
+Gemini, PyMuPDF y las demás dependencias del backend. Solo es necesario
+repetirlo si cambia `requirements.txt` o se crea otro entorno virtual.
 
-```bash
-source .venv/bin/activate
-python -m pip install --upgrade pip
-pip install -r requirements.txt
+### Paso 6. Crear el archivo `.env`
+
+Copiar la plantilla incluida en el repositorio:
+
+```powershell
+Copy-Item .env.example .env
+notepad .env
 ```
 
-### 3. Compilar el frontend
+Para utilizar Cohere, completar como mínimo:
 
-```bash
-cd frontend
-npm install
-npm run build
-cd ..
+```env
+LLM_PROVIDER=cohere
+EMBEDDINGS_PROVIDER=cohere
+COHERE_API_KEY=COLOCAR_AQUI_LA_CLAVE_PERSONAL
+COHERE_CHAT_MODEL=command-a-03-2025
+COHERE_EMBEDDING_MODEL=embed-v4.0
 ```
 
-### 4. Iniciar la aplicación
+Para enviar tickets también se deben completar:
 
-Con las variables privadas ya configuradas:
+```env
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=correo_tecnico@gmail.com
+SMTP_APP_PASSWORD=CONTRASENA_DE_APLICACION
+TICKET_DESTINO=correo_que_recibe_los_tickets@gmail.com
+SMTP_TIMEOUT_SECONDS=30
+```
 
-```bash
+Las variables SMTP pueden quedar vacías si solo se probará el chat. El correo
+escrito por el usuario en el formulario no reemplaza `SMTP_USER`: se usa como
+`Reply-To` para que el área responsable pueda responderle.
+
+El archivo debe llamarse exactamente `.env`, no `.env.txt`. Se comprueba con:
+
+```powershell
+Get-ChildItem -Force .env*
+```
+
+### Paso 7. Ejecutar toda la aplicación
+
+Con `(.venv)` visible y desde la carpeta que contiene `Main.py`:
+
+```powershell
 python Main.py
 ```
 
-Direcciones locales:
+No se necesita abrir otra terminal ni ejecutar React por separado. `Main.py`:
 
-- Aplicación web: `http://localhost:8000`
+1. Inicia FastAPI.
+2. Carga el LLM, los embeddings y el índice FAISS.
+3. Sirve el frontend ya compilado desde `frontend/dist`.
+4. Expone el chat y los endpoints desde el mismo puerto.
+
+La aplicación está lista cuando aparece:
+
+```text
+Application startup complete.
+Uvicorn running on http://0.0.0.0:8000
+```
+
+Abrir en el navegador:
+
+- Aplicación completa: `http://localhost:8000`
 - Estado del servicio: `http://localhost:8000/health`
-- Swagger: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
+- Documentación Swagger: `http://localhost:8000/docs`
 
-El primer arranque puede tardar. La aplicación valida el índice FAISS y solo
-carga PyMuPDF y Transformers si necesita reconstruirlo.
+El primer arranque puede tardar mientras se cargan los componentes. Para
+detener la aplicación se presiona `Ctrl + C` en PowerShell.
+
+### Errores frecuentes en Windows
+
+| Error | Solución |
+| --- | --- |
+| `python no se reconoce` | Instalar Python marcando **Add Python to PATH** y abrir otra ventana de PowerShell. |
+| `running scripts is disabled on this system` | Ejecutar `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned` y volver a activar `.venv`. |
+| `No module named ...` | Activar `.venv` y ejecutar `python -m pip install -r requirements.txt`. |
+| `Falta COHERE_API_KEY` o `Falta GEMINI_API_KEY` | Revisar que `.env` tenga la clave del proveedor seleccionado. |
+| La página muestra que el frontend no está compilado | Comprobar que existe `frontend/dist`. Si fue eliminado, seguir la sección de desarrollo del frontend para reconstruirlo. |
+| El puerto 8000 está ocupado | Cerrar el otro servidor o cambiar `PORT=8001` en `.env` y abrir `http://localhost:8001`. |
+| Error SMTP `535` | Utilizar una contraseña de aplicación de Gmail, no la contraseña normal. |
 
 ## 💻 Desarrollo del frontend
 
-Para usar la recarga automática, deja el backend ejecutándose en el puerto
-`8000` y abre una segunda terminal:
+Esta sección solo es necesaria si se modificará React. Para ejecutar la versión
+actual basta con `python Main.py`.
 
-```bash
+1. Instalar [Node.js 22.12.0](https://nodejs.org/en/blog/release/v22.12.0).
+2. Abrir una terminal nueva y comprobarlo:
+
+   ```powershell
+   node --version
+   npm --version
+   ```
+
+3. Instalar las dependencias del frontend y generar `frontend/dist`:
+
+   ```powershell
+   cd frontend
+   npm install
+   npm run build
+   cd ..
+   ```
+
+Para trabajar con recarga automática, dejar `python Main.py` ejecutándose en
+una primera terminal. En una segunda terminal ejecutar:
+
+```powershell
 cd frontend
 npm run dev
 ```
@@ -332,10 +487,9 @@ Mientras `npm run dev` esté activo, la versión de desarrollo se abre en
 `http://localhost:5173`. Vite redirige `/api` y `/health` hacia FastAPI, que
 continúa ejecutándose en el puerto `8000`.
 
-Este modo se utiliza solamente para modificar el frontend con recarga
-automática. En la ejecución normal, después de `npm run build` y
-`python Main.py`, FastAPI sirve la interfaz directamente en
-`http://localhost:8000`; en ese caso no es necesario abrir el puerto `5173`.
+Este modo se utiliza solamente mientras se modifica el frontend. En la
+ejecución normal, FastAPI sirve la interfaz compilada directamente en
+`http://localhost:8000`; no es necesario abrir el puerto `5173`.
 
 Después de modificar el frontend, ejecuta nuevamente `npm run build` si deseas
 probarlo directamente desde `python Main.py`.
@@ -420,23 +574,57 @@ python test_agente_ligero.py --modo rapido
 Los modos disponibles son `ligero`, `normal` y `rapido`. El resultado se guarda
 en `reporte_pruebas.md` después de cada caso completado.
 
-## 🐳 Docker
+## 🐳 Docker en Windows (opcional)
 
-Construir la imagen:
+**Docker no es necesario para ejecutar el proyecto normalmente.** Si el usuario
+ya instaló Python y siguió la sección anterior, solamente debe usar:
 
-```bash
-docker build -t agente-alicorp .
+```powershell
+python Main.py
 ```
 
-Ejecutar el contenedor con la configuración privada:
+El `Dockerfile` se conserva porque Render lo utiliza para construir y desplegar
+la aplicación. También permite ejecutar el proyecto en un contenedor, pero es
+una alternativa.
 
-```bash
-docker run --env-file .env -p 8000:8000 agente-alicorp
-```
+Si un usuario decide utilizar Docker en Windows:
 
-El `Dockerfile` utiliza dos etapas: `node:22-alpine` compila el frontend y
-`python:3.11-slim` ejecuta FastAPI en la imagen final. Estas son las versiones
-del contenedor y no reemplazan las versiones instaladas en el equipo local.
+1. Instalar [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/)
+   siguiendo su instalador.
+2. Abrir Docker Desktop y esperar a que termine de iniciar.
+3. Comprobarlo en PowerShell:
+
+   ```powershell
+   docker version
+   ```
+
+4. Crear y completar `.env` como se explicó anteriormente.
+5. Desde la carpeta donde está `Dockerfile`, construir la imagen:
+
+   ```powershell
+   docker build -t agente-alicorp .
+   ```
+
+6. Cuando la construcción termine, iniciar el contenedor:
+
+   ```powershell
+   docker run --rm --name agente-alicorp --env-file .env -p 8000:8000 agente-alicorp
+   ```
+
+7. Abrir `http://localhost:8000`.
+8. Para detenerlo, presionar `Ctrl + C`.
+
+Dentro del contenedor, el `Dockerfile` ejecuta automáticamente `python Main.py`.
+Por eso no se debe ejecutar ese comando por separado cuando se utiliza Docker.
+
+Errores básicos:
+
+| Error | Solución |
+| --- | --- |
+| `docker no se reconoce` | Docker Desktop no está instalado o falta abrir una terminal nueva. |
+| `Cannot connect to the Docker daemon` | Abrir Docker Desktop y esperar a que inicie. |
+| No encuentra `.env` | Crear `.env` desde `.env.example` en la raíz del proyecto. |
+| El puerto 8000 está ocupado | Usar `-p 8080:8000` y abrir `http://localhost:8080`. |
 
 ## ☁️ Despliegue en Render
 
@@ -449,6 +637,12 @@ frontend y la API desde el mismo dominio.
 Comprobación del servicio:
 
 **https://agente-alicorp.onrender.com/health**
+
+> Render bloquea los puertos SMTP `25`, `465` y `587` en los servicios web
+> gratuitos. En ese tipo de instancia el chat puede funcionar, pero el envío
+> por Gmail SMTP no. Para habilitarlo en producción se necesita una instancia
+> compatible o un servicio de correo mediante API HTTPS. Consulta las
+> [limitaciones oficiales del plan gratuito](https://render.com/docs/free#outbound-traffic).
 
 ## ⚠️ Consideraciones actuales
 
