@@ -574,6 +574,26 @@ python test_agente_ligero.py --modo rapido
 Los modos disponibles son `ligero`, `normal` y `rapido`. El resultado se guarda
 en `reporte_pruebas.md` después de cada caso completado.
 
+### Resultado documentado
+
+El reporte disponible corresponde a una ejecución parcial de cuatro casos. No representa todavía la ejecución completa de los 44 casos definidos.
+
+| Métrica | Resultado |
+| --- | ---: |
+| Casos ejecutados | 4 |
+| Casos aprobados | 4 |
+| Casos fallidos | 0 |
+| Tasa de éxito de la ejecución | **100 %** |
+
+| Caso | Categoría | Acción esperada | Acción obtenida | Estado |
+| ---: | --- | --- | --- | --- |
+| 38 | Triaje: abrir ticket | `ABRIR_TICKET` | `ABRIR_TICKET` | PASS |
+| 39 | Triaje: abrir ticket | `ABRIR_TICKET` | `ABRIR_TICKET` | PASS |
+| 40 | Triaje: abrir ticket | `ABRIR_TICKET` | `ABRIR_TICKET` | PASS |
+| 41 | Memoria y RAG sobre regalos | `AUTO_RESOLVER` | `AUTO_RESOLVER` | PASS |
+
+El caso 41 produjo una respuesta útil respaldada por cuatro citaciones. El detalle de las preguntas, respuestas, tiempos y validaciones se encuentra en [reporte_pruebas.md](reporte_pruebas.md).
+
 ## 🐳 Docker en Windows (opcional)
 
 **Docker no es necesario para ejecutar el proyecto normalmente.** Si el usuario
