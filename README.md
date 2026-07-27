@@ -682,7 +682,7 @@ Comprobación del servicio:
 
 ## Evidencia
 
-![Prueba de despliegue](Prueba despliegue.png)
+![Prueba de despliegue](./prueba-despliegue.png)
 
 ## ⚠️ Consideraciones actuales
 
