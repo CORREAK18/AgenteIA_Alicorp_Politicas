@@ -679,6 +679,11 @@ Comprobación del servicio:
 > compatible o un servicio de correo mediante API HTTPS. Consulta las
 > [limitaciones oficiales del plan gratuito](https://render.com/docs/free#outbound-traffic).
 
+
+## Evidencia
+
+![Prueba de despliegue](Prueba despliegue.png)
+
 ## ⚠️ Consideraciones actuales
 
 - La memoria conversacional se guarda en RAM y se pierde al reiniciar el
